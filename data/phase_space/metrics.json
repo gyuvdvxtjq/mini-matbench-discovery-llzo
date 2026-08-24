@@ -1,0 +1,31 @@
+{
+  "n_total": 150,
+  "n_success": 150,
+  "n_failed": 0,
+  "n_exact_llzo": 3,
+  "energy_mae_eV_per_atom": 1.7936053881423375,
+  "energy_rmse_eV_per_atom": 5.66116180380196,
+  "formation_energy_mae_eV_per_atom": 0.04180935862387766,
+  "hull_mae_eV_per_atom": 0.03760939212208537,
+  "hull_rmse_eV_per_atom": 0.0557628280225013,
+  "energy_spearman": 0.8069176407840349,
+  "hull_spearman": 0.8644645236274185,
+  "stable_classification": {
+    "true_positive": 6,
+    "false_positive": 6,
+    "false_negative": 9,
+    "true_negative": 129,
+    "precision": 0.5,
+    "recall": 0.4,
+    "f1": 0.4444444444444445
+  },
+  "within_50meV_classification": {
+    "true_positive": 50,
+    "false_positive": 16,
+    "false_negative": 7,
+    "true_negative": 77,
+    "precision": 0.7575757575757576,
+    "recall": 0.8771929824561403,
+    "f1": 0.8130081300813008
+  }
+}

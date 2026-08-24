@@ -1,22 +1,23 @@
 # Mini Matbench-Discovery: CHGNet on LLZO
 
-这是一个可复现的小型评测：从 Materials Project 获取 `Li-La-Zr-O` 精确化学体系中的
-LLZO 结构，以 CHGNet 进行结构弛豫，并将弛豫能量与 MP 的 DFT 参考能量进行对比。
+这是一个可复现的两层评测：从 Materials Project 获取 `Li-La-Zr-O` 相空间中的结构，
+用 CHGNet 评估能量与热力学稳定性，并对精确 LLZO 四元结构进行完整结构弛豫。
 
 ## 评测口径
 
-- 数据范围：Materials Project `chemsys=Li-La-Zr-O`，最多 120 个原子。
+- 相空间层：Li、La、Zr、O 的元素、二元、三元和四元体系，共 150 个结构。
+- LLZO 层：Materials Project `chemsys=Li-La-Zr-O` 的 3 个精确四元结构。
 - 模型：CHGNet 预训练模型。
-- 弛豫：默认 CPU、最多 100 步、目标最大力 `0.1 eV/Å`、晶格与原子同时弛豫。
-- 指标：能量 MAE、RMSE、Spearman 秩相关、收敛数和失败数。
+- 相空间指标：形成能 MAE、凸包距离 MAE、Spearman、稳定相分类。
+- LLZO 弛豫：默认 CPU、最多 100 步、目标最大力 `0.1 eV/Å`。
 - 失败不会被删除，会写入 checkpoint 和最终 CSV。
 
-> Materials Project 当前只返回 3 个满足上述精确化学体系的结构，虽然命令默认上限是
-> 20，但程序不会用无关材料补足样本。因此本仓库是 LLZO 小样本 pilot，而不是完整的
-> Matbench-Discovery 稳定性榜单复现。
+> Materials Project 当前只返回 3 个精确 LLZO 四元结构。稳定性不能只由这 3 个结构
+> 决定，因此相空间评测额外纳入 147 个元素及竞争相，而不是用无关材料补数。
 
-这里比较的是 CHGNet 与 DFT 的**弛豫后能量**。`energy_above_hull` 被保留为参考字段，
-但不会错误地拿原始总能与凸包距离直接计算相关性。
+相空间脚本使用 CHGNet 单点能重建凸包；LLZO 脚本比较弛豫后能量。不同赝势/元素基准下
+原始总能存在元素相关常数偏移，因此稳定性结论使用形成能和凸包距离，而不使用跨组分
+原始总能 MAE。
 
 ## 环境
 
@@ -30,6 +31,7 @@ Copy-Item ".env.example" ".env"
 ## 运行
 
 ```powershell
+python "phase_space_benchmark.py"
 python "battery_mlip_pilot.py"
 ```
 
@@ -50,5 +52,15 @@ python "battery_mlip_pilot.py" --fresh --no-relax-cell
 - `data/largest_errors.csv`
 - `data/plots/energy_parity.png`
 - `data/plots/absolute_errors.png`
+- `data/phase_space/chgnet_phase_space.csv`
+- `data/phase_space/metrics.json`
+- `data/phase_space/plots/hull_parity.png`
+- `data/phase_space/plots/hull_mae_by_chemsys.png`
 
 API 原始结构与运行 checkpoint 位于 `data/raw/` 和 `data/checkpoints/`，不会提交到仓库。
+
+## 解释边界
+
+CHGNet 的训练数据包含 Materials Project 数据，因此这里衡量的是已知 MP 化学空间上的
+**工作流正确性与域内可靠性**，不是严格的域外泛化成绩，也不冒充完整
+Matbench-Discovery 榜单结果。

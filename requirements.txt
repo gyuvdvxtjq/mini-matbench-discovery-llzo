@@ -1,4 +1,6 @@
 chgnet==0.4.2
+# CHGNet's CPU path is validated with this PyTorch release on Windows.
+torch==2.5.1
 matplotlib==3.10.5
 mp-api==0.46.5
 pandas==2.3.2

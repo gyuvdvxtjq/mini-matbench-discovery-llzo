@@ -87,9 +87,11 @@ def fetch_phase_space(api_key: str) -> list[dict[str, Any]]:
     return records
 
 
-def load_or_fetch(api_key: str, use_cache: bool) -> list[dict[str, Any]]:
+def load_or_fetch(api_key: str | None, use_cache: bool) -> list[dict[str, Any]]:
     if use_cache and RAW_PATH.exists():
         return json.loads(RAW_PATH.read_text(encoding="utf-8"))
+    if not api_key:
+        raise RuntimeError("MP_API_KEY is missing from .env.")
     return fetch_phase_space(api_key)
 
 
@@ -312,7 +314,10 @@ def make_plots(frame: pd.DataFrame) -> None:
 
 def main() -> None:
     args = parse_args()
-    source = load_or_fetch(require_api_key(), args.use_cache)
+    # Cached runs are intentionally offline: no API key should be needed when
+    # the raw Materials Project snapshot is already present.
+    api_key = None if args.use_cache and RAW_PATH.exists() else require_api_key()
+    source = load_or_fetch(api_key, args.use_cache)
     print(f"Total phase-space structures: {len(source)}")
     predicted = predict_energies(source, args.device, args.batch_size)
     metrics = analyze(predicted)

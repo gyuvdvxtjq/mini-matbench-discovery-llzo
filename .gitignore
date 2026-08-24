@@ -1,0 +1,28 @@
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Local environments and tooling
+.venv/
+.conda/
+.vscode/
+.idea/
+.codex/
+
+# Runtime caches/checkpoints
+data/raw/
+data/checkpoints/
+data/structures/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Original planning note (contains non-project career notes)
+mini-matbench-discovery-llzo.md

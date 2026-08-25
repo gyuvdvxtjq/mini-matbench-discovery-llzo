@@ -1,73 +1,116 @@
-# Mini Matbench-Discovery: CHGNet on LLZO
+# mini-matbench-discovery-llzo
 
-这是一个可复现的两层评测：从 Materials Project 获取 `Li-La-Zr-O` 相空间中的结构，
-用 CHGNet 评估能量与热力学稳定性，并对精确 LLZO 四元结构进行完整结构弛豫。
+**A reproducible CHGNet benchmark for thermodynamic-stability prediction in the LLZO solid-electrolyte system**
 
-![CHGNet vs MP convex-hull distance parity](data/phase_space/plots/hull_parity.png)
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-- 相空间层凸包距离 MAE **0.038 eV/atom**、Spearman **0.86**；50 meV/atom 候选分类 F1 **0.81**
-- 完整结果与误差归因分析见 [`RESULTS.md`](RESULTS.md)
+---
 
-## 评测口径
+## Overview
 
-- 相空间层：Li、La、Zr、O 的元素、二元、三元和四元体系，共 150 个结构。
-- LLZO 层：Materials Project `chemsys=Li-La-Zr-O` 的 3 个精确四元结构。
-- 模型：CHGNet 预训练模型。
-- 相空间指标：形成能 MAE、凸包距离 MAE、Spearman、稳定相分类。
-- LLZO 弛豫：默认 CPU、最多 100 步、目标最大力 `0.1 eV/Å`。
-- 失败不会被删除，会写入 checkpoint 和最终 CSV。
+This repository provides a focused, reproducible benchmark of how reliably **CHGNet**, a pretrained universal machine-learning interatomic potential (MLIP), predicts energies and thermodynamic stability across the Li–La–Zr–O chemical space — the phase space hosting the garnet solid-state electrolyte LLZO (Li₇La₃Zr₂O₁₂). Judging whether a crystal structure is stable traditionally requires expensive quantum-mechanical calculations (DFT, hours per structure); MLIPs like CHGNet reduce this to seconds and are widely used for materials screening. The question this benchmark answers: **in this system, is that speedup trustworthy — and where does it fail?**
 
-> Materials Project 当前只返回 3 个精确 LLZO 四元结构。稳定性不能只由这 3 个结构
-> 决定，因此相空间评测额外纳入 147 个元素及竞争相，而不是用无关材料补数。
+The benchmark has two levels:
 
-相空间脚本使用 CHGNet 单点能重建凸包；LLZO 脚本比较弛豫后能量。不同赝势/元素基准下
-原始总能存在元素相关常数偏移，因此稳定性结论使用形成能和凸包距离，而不使用跨组分
-原始总能 MAE；LLZO 弛豫层的能量误差是同一 `La-Li-O-Zr` 元素空间内的相对比较。
-误差归因分析（富 La 结构低估、单质多形体排序翻转、O2 分子晶体失效）见
-`RESULTS.md` 第 4 节。
+- **Phase-space layer**: 150 structures spanning every elemental, binary, ternary, and quaternary subsystem of Li/La/Zr/O (14 chemsyses). CHGNet single-point energies rebuild the convex hull; formation energies, hull distances, and stable-phase classification are compared against DFT references.
+- **LLZO layer**: full structural relaxation (up to 100 ionic steps, force criterion 0.1 eV/Å) of the 3 exact quaternary LLZO structures on Materials Project, with relaxed energies compared against DFT within the same elemental space.
 
-## 环境
+Failed runs are never deleted — they are written to checkpoints and final CSVs as benchmark evidence.
 
-```powershell
-conda env create -f "environment.yml" --override-channels
-conda activate "mini-matbench-llzo"
-Copy-Item ".env.example" ".env"
-# 在 .env 中填写 MP_API_KEY；该文件已被 git 忽略
+> Materials Project currently returns only 3 exact LLZO quaternary structures. Stability cannot be judged from 3 structures alone, so the phase-space evaluation adds the remaining 147 elemental and competing phases instead of padding with unrelated materials.
+
+Raw DFT and CHGNet total energies carry different element-dependent reference offsets, so all cross-chemsys conclusions use formation energies and hull distances — never raw total-energy MAE.
+
+---
+
+## Key Results
+
+| Metric | Value |
+| --- | ---: |
+| Hull-distance (E-hull) MAE | **0.0376 eV/atom** |
+| Hull-distance Spearman ρ | **0.8645** |
+| Candidate classification F1 at 50 meV/atom (57 positives) | **0.813** |
+| Strict stable-phase classification F1 (15 positives) | 0.444 |
+| Formation-energy MAE | 0.0418 eV/atom |
+| LLZO relaxation: converged / energy MAE | 3 of 3 · 0.0450 eV/atom |
+
+![Hull parity](data/phase_space/plots/hull_parity.png)
+
+![Hull MAE by chemical system](data/phase_space/plots/hull_mae_by_chemsys.png)
+
+Full metrics, methodology notes, and the error-attribution analysis — why two La-rich structures are systematically underestimated by ~60 meV/atom, ranking flips among elemental polymorphs, and a bimodal failure cluster on O₂ molecular crystals — are documented in [`RESULTS.md`](RESULTS.md) (Chinese).
+
+---
+
+## Repository Layout
+
+```
+.
+├── phase_space_benchmark.py   # Phase-space benchmark (150 structures, single-point energies)
+├── battery_mlip_pilot.py      # LLZO relaxation benchmark (3 quaternary structures)
+├── environment.yml            # Conda environment specification
+├── requirements.txt           # pip dependencies
+├── RESULTS.md                 # Full results and error analysis (Chinese)
+├── .env.example               # Template for MP_API_KEY (not committed)
+└── data/                      # Outputs after running
+    ├── chgnet_vs_mp_llzo.csv  #   relaxation-vs-DFT table
+    ├── metrics.json           #   headline metrics
+    ├── phase_space/           #   per-structure CSV + hull metrics + plots
+    ├── raw/                   #   MP API snapshot (not committed)
+    └── checkpoints/           #   resume checkpoints (not committed)
 ```
 
-## 运行
+---
 
-```powershell
-python "phase_space_benchmark.py"
-python "battery_mlip_pilot.py"
+## Usage
+
+### Environment setup
+
+Requires [conda](https://docs.conda.io/) and a free [Materials Project](https://next-gen.materialsproject.org/) API key.
+
+```bash
+git clone https://github.com/gyuvdvxtjq/mini-matbench-discovery-llzo.git
+cd mini-matbench-discovery-llzo
+conda env create -f environment.yml --override-channels
+conda activate mini-matbench-llzo
+cp .env.example .env        # Windows PowerShell: Copy-Item .env.example .env
+# open .env and fill in MP_API_KEY, then continue
+python phase_space_benchmark.py
+python battery_mlip_pilot.py
 ```
 
-常用参数：
+Both scripts resume from checkpoints: re-running after an interruption skips structures that already succeeded.
 
-```powershell
-# 只验证 API 和缓存数据
-python "battery_mlip_pilot.py" --fetch-only
+### Useful flags
 
-# 从头运行固定晶格弛豫
-python "battery_mlip_pilot.py" --fresh --no-relax-cell
+```bash
+# verify API access and cached data only
+python battery_mlip_pilot.py --fetch-only
+
+# rerun relaxations from scratch with fixed lattices
+python battery_mlip_pilot.py --fresh --no-relax-cell
 ```
 
-中断后再次执行会跳过已经成功的材料。主要输出为：
+### Configuration
 
-- `data/chgnet_vs_mp_llzo.csv`
-- `data/metrics.json`
-- `data/largest_errors.csv`
-- `data/plots/energy_parity.png`
-- `data/plots/absolute_errors.png`
-- `data/phase_space/chgnet_phase_space.csv`
-- `data/phase_space/metrics.json`
-- `data/phase_space/plots/hull_parity.png`
-- `data/phase_space/plots/hull_mae_by_chemsys.png`
+- **Model**: pretrained CHGNet `0.3.0` (package `chgnet==0.4.2`)
+- **Relaxation**: max 100 ionic steps, convergence at max-force ≤ 0.1 eV/Å
+- **Hardware**: runs on CPU by default; CUDA/MPS devices are supported via `--device`
 
-API 原始结构与运行 checkpoint 位于 `data/raw/` 和 `data/checkpoints/`，不会提交到仓库。
+Outputs are plain CSV tables, JSON metrics, and PNG figures, so everything can be inspected without rerunning.
 
-## 解释边界
+---
 
-CHGNet 的训练数据包含 Materials Project 数据，因此这里衡量的是已知 MP 化学空间上的
-**工作流正确性与域内可靠性**，不是严格的域外泛化成绩，也不冒充完整
-Matbench-Discovery 榜单结果。
+## Scope & Limitations
+
+CHGNet's training data comes from Materials Project, and so do all 150 structures evaluated here. This is therefore an **in-distribution** benchmark: it measures workflow correctness and predictive reliability within the chemical space the model was trained on. It does not measure extrapolation to unseen candidate structures — that requires an independent discovery set such as WBM under the full Matbench-Discovery protocol, and these results should not be read as an estimate of that score.
+
+---
+
+## Acknowledgments
+
+Thanks to the CHGNet development team and the Materials Project consortium for open models and reference data that made this benchmark possible.
+
+## Contact
+
+Questions and suggestions are welcome via [GitHub Issues](https://github.com/gyuvdvxtjq/mini-matbench-discovery-llzo/issues).

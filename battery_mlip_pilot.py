@@ -202,14 +202,28 @@ def analyze(records: list[dict[str, Any]]) -> dict[str, Any]:
     ok["energy_error_eV_per_atom"] = (
         ok["chgnet_relaxed_e_per_atom"] - ok["mp_energy_per_atom"]
     )
+    # All rows share one chemsys (La-Li-O-Zr), so elemental reference offsets
+    # cancel to first order; this is a relative comparison, not an absolute
+    # cross-chemsys energy accuracy claim.
     ok["abs_energy_error_eV_per_atom"] = ok["energy_error_eV_per_atom"].abs()
     for column in ("energy_error_eV_per_atom", "abs_energy_error_eV_per_atom"):
         frame.loc[ok.index, column] = ok[column]
     frame.to_csv(RESULT_PATH, index=False, encoding="utf-8-sig")
 
-    spearman = ok["chgnet_relaxed_e_per_atom"].corr(
-        ok["mp_energy_per_atom"], method="spearman"
-    )
+    # Rank correlation is meaningless on tiny samples; require enough points
+    # before reporting it (the exact LLZO query currently returns only 3).
+    if len(ok) >= 5:
+        spearman = ok["chgnet_relaxed_e_per_atom"].corr(
+            ok["mp_energy_per_atom"], method="spearman"
+        )
+        spearman_block: dict[str, Any] = {
+            "spearman_energy": None if pd.isna(spearman) else float(spearman),
+        }
+    else:
+        spearman_block = {
+            "spearman_energy": None,
+            "spearman_note": f"not computed: n={len(ok)} < 5",
+        }
     metrics = {
         "chemical_system": CHEMSYS,
         "requested_limit": DEFAULT_LIMIT,
@@ -221,7 +235,16 @@ def analyze(records: list[dict[str, Any]]) -> dict[str, Any]:
         "rmse_eV_per_atom": float(
             np.sqrt(np.mean(np.square(ok["energy_error_eV_per_atom"])))
         ),
-        "spearman_energy": None if pd.isna(spearman) else float(spearman),
+        "spearman_energy": spearman_block["spearman_energy"],
+        "spearman_note": spearman_block.get("spearman_note", ""),
+        # Raw total energies are only compared within the single La-Li-O-Zr
+        # elemental space, where both energies share the same elemental
+        # references; cross-chemsys conclusions use formation energies and
+        # hull distances from the phase-space benchmark instead.
+        "energy_comparison_note": (
+            "same-chemsys relative comparison; "
+            "stability conclusions rely on phase_space E-hull"
+        ),
         "python": sys.version.split()[0],
         "platform": platform.platform(),
     }

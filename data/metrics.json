@@ -7,7 +7,9 @@
   "n_converged": 3,
   "mae_eV_per_atom": 0.04500461406361348,
   "rmse_eV_per_atom": 0.045503897729274705,
-  "spearman_energy": 1.0,
+  "spearman_energy": null,
+  "spearman_note": "not computed: n=3 < 5",
+  "energy_comparison_note": "same-chemsys relative comparison; stability conclusions rely on phase_space E-hull",
   "python": "3.12.4",
   "platform": "Windows-11-10.0.22631-SP0"
 }

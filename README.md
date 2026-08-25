@@ -3,6 +3,11 @@
 这是一个可复现的两层评测：从 Materials Project 获取 `Li-La-Zr-O` 相空间中的结构，
 用 CHGNet 评估能量与热力学稳定性，并对精确 LLZO 四元结构进行完整结构弛豫。
 
+![CHGNet vs MP convex-hull distance parity](data/phase_space/plots/hull_parity.png)
+
+- 相空间层凸包距离 MAE **0.038 eV/atom**、Spearman **0.86**；50 meV/atom 候选分类 F1 **0.81**
+- 完整结果与误差归因分析见 [`RESULTS.md`](RESULTS.md)
+
 ## 评测口径
 
 - 相空间层：Li、La、Zr、O 的元素、二元、三元和四元体系，共 150 个结构。
@@ -17,7 +22,9 @@
 
 相空间脚本使用 CHGNet 单点能重建凸包；LLZO 脚本比较弛豫后能量。不同赝势/元素基准下
 原始总能存在元素相关常数偏移，因此稳定性结论使用形成能和凸包距离，而不使用跨组分
-原始总能 MAE。
+原始总能 MAE；LLZO 弛豫层的能量误差是同一 `La-Li-O-Zr` 元素空间内的相对比较。
+误差归因分析（富 La 结构低估、单质多形体排序翻转、O2 分子晶体失效）见
+`RESULTS.md` 第 4 节。
 
 ## 环境
 

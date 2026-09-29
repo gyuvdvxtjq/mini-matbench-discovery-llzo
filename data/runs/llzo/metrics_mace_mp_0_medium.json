@@ -1,0 +1,151 @@
+{
+  "single_point": {
+    "n_total": 150,
+    "n_success": 150,
+    "n_failed": 0,
+    "hull_mae_eV_per_atom": {
+      "point": 0.045388269743605866,
+      "ci_low": 0.034852590241256115,
+      "ci_high": 0.05590702361460641,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "hull_rmse_eV_per_atom": {
+      "point": 0.0830445655815064,
+      "ci_low": 0.06210949068837561,
+      "ci_high": 0.1007106077519492,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "hull_spearman": {
+      "point": 0.8677649300935577,
+      "ci_low": 0.7963165234400578,
+      "ci_high": 0.9213642745113303,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "formation_energy_mae_eV_per_atom": {
+      "point": 0.23758162100467212,
+      "ci_low": 0.21080176848398752,
+      "ci_high": 0.2645971311063861,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "stable_classification_f1": {
+      "point": 0.4444444444444445,
+      "ci_low": 0.18939393939393942,
+      "ci_high": 0.6666666666666666,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "candidate_classification_f1": {
+      "point": 0.7652173913043477,
+      "ci_low": 0.6732625666412794,
+      "ci_high": 0.8421052631578948,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "candidate_window_eV": 0.05,
+    "n_mp_stable": 15,
+    "n_mp_candidates": 57
+  },
+  "relaxation": {
+    "n_total": 150,
+    "n_success": 150,
+    "n_failed": 0,
+    "hull_mae_eV_per_atom": {
+      "point": 1943117344.381875,
+      "ci_low": 1761853470.6175635,
+      "ci_high": 2118405191.7724266,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "hull_rmse_eV_per_atom": {
+      "point": 2241742212.10295,
+      "ci_low": 2088396444.072769,
+      "ci_high": 2380892598.610649,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "hull_spearman": {
+      "point": 0.251101970666396,
+      "ci_low": 0.07410411667045795,
+      "ci_high": 0.4143546713439744,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "formation_energy_mae_eV_per_atom": {
+      "point": 1943117346.1823196,
+      "ci_low": 1761853472.3581343,
+      "ci_high": 2118405193.540397,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "stable_classification_f1": null,
+    "candidate_classification_f1": {
+      "point": 0.2816901408450704,
+      "ci_low": 0.14491880565741225,
+      "ci_high": 0.4210526315789473,
+      "alpha": 0.05,
+      "n_resamples": 2000,
+      "seed": 20260927
+    },
+    "candidate_window_eV": 0.05,
+    "n_mp_stable": 15,
+    "n_mp_candidates": 57,
+    "confidence_signal": {
+      "description": "initial max force at the MP geometry as a cheap OOD proxy; positive class = |hull error| > 0.05 eV/atom",
+      "auroc": 0.8690237042989152,
+      "spearman_force_vs_abs_error": 0.5975318635198315,
+      "n_flagged": 131
+    }
+  },
+  "md": {
+    "points": [
+      {
+        "temperature": 800,
+        "diffusivity_cm2_per_s": 2.516683534600702e-09,
+        "msd_final_A2": 0.1234395109996151,
+        "msd_fit_r2": 0.07170249695445752
+      },
+      {
+        "temperature": 1000,
+        "diffusivity_cm2_per_s": 7.694072974185767e-07,
+        "msd_final_A2": 1.366442178836307,
+        "msd_fit_r2": 0.958950108004591
+      },
+      {
+        "temperature": 1200,
+        "diffusivity_cm2_per_s": -4.1796599176323806e-08,
+        "msd_final_A2": 0.2832411712235631,
+        "msd_fit_r2": 0.03479743457382645
+      },
+      {
+        "temperature": 1400,
+        "diffusivity_cm2_per_s": 1.7937623467024513e-06,
+        "msd_final_A2": 2.084717282514852,
+        "msd_fit_r2": 0.9329775224892387
+      }
+    ],
+    "arrhenius": {
+      "activation_energy_eV": NaN,
+      "prefactor_cm2_per_s": NaN,
+      "fit_temperatures": [
+        800.0,
+        1000.0,
+        1200.0,
+        1400.0
+      ]
+    }
+  }
+}

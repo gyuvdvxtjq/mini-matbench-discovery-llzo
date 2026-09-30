@@ -1,0 +1,332 @@
+{
+  "skipped_models": {
+    "dpa4-mini-omat24": "deepmd-kit not installed: No module named 'deepmd'"
+  },
+  "chgnet-0.3.0": {
+    "single_point": {
+      "n_total": 150,
+      "n_success": 150,
+      "n_failed": 0,
+      "hull_mae_eV_per_atom": {
+        "point": 0.03760922054359533,
+        "ci_low": 0.0313519706582677,
+        "ci_high": 0.044185339124604484,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "hull_rmse_eV_per_atom": {
+        "point": 0.05576263009217616,
+        "ci_low": 0.043030200520951856,
+        "ci_high": 0.06891921215014335,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "hull_spearman": {
+        "point": 0.8644645236274185,
+        "ci_low": 0.7874288829919385,
+        "ci_high": 0.9208065459027742,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "formation_energy_mae_eV_per_atom": {
+        "point": 0.041809316043563076,
+        "ci_low": 0.0350913659408945,
+        "ci_high": 0.049086767222353514,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "stable_classification_f1": {
+        "point": 0.4444444444444445,
+        "ci_low": 0.1818181818181818,
+        "ci_high": 0.6666666666666666,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "candidate_classification_f1": {
+        "point": 0.8130081300813008,
+        "ci_low": 0.7317073170731708,
+        "ci_high": 0.8849692629872323,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "candidate_window_eV": 0.05,
+      "n_mp_stable": 15,
+      "n_mp_candidates": 57
+    },
+    "relaxation": {
+      "n_total": 150,
+      "n_success": 150,
+      "n_failed": 0,
+      "hull_mae_eV_per_atom": {
+        "point": 0.05402341649091411,
+        "ci_low": 0.03861930379370831,
+        "ci_high": 0.07186680204242264,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "hull_rmse_eV_per_atom": {
+        "point": 0.1177264861985179,
+        "ci_low": 0.06648886371497192,
+        "ci_high": 0.1611716110366108,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "hull_spearman": {
+        "point": 0.8730580348034035,
+        "ci_low": 0.8046703709342777,
+        "ci_high": 0.9216442400631508,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "formation_energy_mae_eV_per_atom": {
+        "point": 0.05997826598531326,
+        "ci_low": 0.04433217287040452,
+        "ci_high": 0.07806772535546423,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "stable_classification_f1": {
+        "point": 0.4444444444444445,
+        "ci_low": 0.1818181818181818,
+        "ci_high": 0.6666666666666666,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "candidate_classification_f1": {
+        "point": 0.8527131782945737,
+        "ci_low": 0.782608695652174,
+        "ci_high": 0.9109036220077702,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "candidate_window_eV": 0.05,
+      "n_mp_stable": 15,
+      "n_mp_candidates": 57,
+      "confidence_signal": {
+        "description": "initial max force at the MP geometry as a cheap OOD proxy; positive class = |hull error| > 0.05 eV/atom",
+        "auroc": 0.47189667543649844,
+        "spearman_force_vs_abs_error": -0.04433379776254825,
+        "n_flagged": 37
+      }
+    },
+    "md": {
+      "points": [
+        {
+          "temperature": 800,
+          "diffusivity_cm2_per_s": 1.5167201952656898e-08,
+          "msd_final_A2": 0.221941271199429,
+          "msd_fit_r2": 0.5169595110386984
+        },
+        {
+          "temperature": 1000,
+          "diffusivity_cm2_per_s": 5.265808209135439e-07,
+          "msd_final_A2": 0.637649842327585,
+          "msd_fit_r2": 0.8621901991509268
+        },
+        {
+          "temperature": 1200,
+          "diffusivity_cm2_per_s": 2.482652809034022e-06,
+          "msd_final_A2": 3.8207654078727207,
+          "msd_fit_r2": 0.9907242548120819
+        },
+        {
+          "temperature": 1400,
+          "diffusivity_cm2_per_s": 6.609478493985964e-06,
+          "msd_final_A2": 9.310629952016475,
+          "msd_fit_r2": 0.965930282828568
+        }
+      ],
+      "arrhenius": {
+        "activation_energy_eV": 0.9813368333848278,
+        "prefactor_cm2_per_s": 0.02984375792870313,
+        "fit_temperatures": [
+          800.0,
+          1000.0,
+          1200.0,
+          1400.0
+        ]
+      }
+    }
+  },
+  "mace-mp-0-medium": {
+    "single_point": {
+      "n_total": 150,
+      "n_success": 150,
+      "n_failed": 0,
+      "hull_mae_eV_per_atom": {
+        "point": 0.045388269743605866,
+        "ci_low": 0.034852590241256115,
+        "ci_high": 0.05590702361460641,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "hull_rmse_eV_per_atom": {
+        "point": 0.0830445655815064,
+        "ci_low": 0.06210949068837561,
+        "ci_high": 0.1007106077519492,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "hull_spearman": {
+        "point": 0.8677649300935577,
+        "ci_low": 0.7963165234400578,
+        "ci_high": 0.9213642745113303,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "formation_energy_mae_eV_per_atom": {
+        "point": 0.23758162100467212,
+        "ci_low": 0.21080176848398752,
+        "ci_high": 0.2645971311063861,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "stable_classification_f1": {
+        "point": 0.4444444444444445,
+        "ci_low": 0.18939393939393942,
+        "ci_high": 0.6666666666666666,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "candidate_classification_f1": {
+        "point": 0.7652173913043477,
+        "ci_low": 0.6732625666412794,
+        "ci_high": 0.8421052631578948,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "candidate_window_eV": 0.05,
+      "n_mp_stable": 15,
+      "n_mp_candidates": 57
+    },
+    "relaxation": {
+      "n_total": 150,
+      "n_success": 150,
+      "n_failed": 0,
+      "hull_mae_eV_per_atom": {
+        "point": 1943117344.381875,
+        "ci_low": 1761853470.6175635,
+        "ci_high": 2118405191.7724266,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "hull_rmse_eV_per_atom": {
+        "point": 2241742212.10295,
+        "ci_low": 2088396444.072769,
+        "ci_high": 2380892598.610649,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "hull_spearman": {
+        "point": 0.251101970666396,
+        "ci_low": 0.07410411667045795,
+        "ci_high": 0.4143546713439744,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "formation_energy_mae_eV_per_atom": {
+        "point": 1943117346.1823196,
+        "ci_low": 1761853472.3581343,
+        "ci_high": 2118405193.540397,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "stable_classification_f1": null,
+      "candidate_classification_f1": {
+        "point": 0.2816901408450704,
+        "ci_low": 0.14491880565741225,
+        "ci_high": 0.4210526315789473,
+        "alpha": 0.05,
+        "n_resamples": 2000,
+        "seed": 20260927
+      },
+      "candidate_window_eV": 0.05,
+      "n_mp_stable": 15,
+      "n_mp_candidates": 57,
+      "confidence_signal": {
+        "description": "initial max force at the MP geometry as a cheap OOD proxy; positive class = |hull error| > 0.05 eV/atom",
+        "auroc": 0.8690237042989152,
+        "spearman_force_vs_abs_error": 0.5975318635198315,
+        "n_flagged": 131
+      }
+    },
+    "md": {
+      "points": [
+        {
+          "temperature": 800,
+          "diffusivity_cm2_per_s": 2.516683534600702e-09,
+          "msd_final_A2": 0.1234395109996151,
+          "msd_fit_r2": 0.07170249695445752
+        },
+        {
+          "temperature": 1000,
+          "diffusivity_cm2_per_s": 7.694072974185767e-07,
+          "msd_final_A2": 1.366442178836307,
+          "msd_fit_r2": 0.958950108004591
+        },
+        {
+          "temperature": 1200,
+          "diffusivity_cm2_per_s": -4.1796599176323806e-08,
+          "msd_final_A2": 0.2832411712235631,
+          "msd_fit_r2": 0.03479743457382645
+        },
+        {
+          "temperature": 1400,
+          "diffusivity_cm2_per_s": 1.7937623467024513e-06,
+          "msd_final_A2": 2.084717282514852,
+          "msd_fit_r2": 0.9329775224892387
+        }
+      ],
+      "arrhenius": {
+        "activation_energy_eV": NaN,
+        "prefactor_cm2_per_s": NaN,
+        "fit_temperatures": [
+          800.0,
+          1000.0,
+          1200.0,
+          1400.0
+        ]
+      }
+    }
+  },
+  "cross_model_attribution": {
+    "n_shared_structures": 150,
+    "models": [
+      "chgnet-0.3.0",
+      "mace-mp-0-medium"
+    ],
+    "pairwise_error_spearman": {
+      "chgnet-0.3.0 vs mace-mp-0-medium": 0.06838205556618326
+    },
+    "top_error_overlap": {
+      "top_k": 20,
+      "n_shared_worst": 1,
+      "jaccard": 0.02564102564102564,
+      "shared_worst_material_ids": [
+        "mp-1180064"
+      ]
+    }
+  }
+}

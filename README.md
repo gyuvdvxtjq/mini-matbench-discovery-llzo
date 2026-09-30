@@ -42,20 +42,54 @@ Full metrics, methodology notes, and the error-attribution analysis — why two 
 
 ---
 
+## Multi-model MLIP audit (`mlip_audit`)
+
+The single-model pilot above is generalized by an audit framework that drives
+**several universal MLIPs through one identical protocol** and compares them
+side by side:
+
+- `mlip_audit/` — config-driven runner: single point, cell relaxation, and
+  NVT→NVE molecular dynamics, every record checkpointed to
+  `data/runs/llzo/checkpoints.jsonl` so runs resume and models can be added
+  without recomputation.
+- `configs/llzo.yaml` — the LLZO audit (Li/La/Zr/O phase space + Li-ion
+  diffusivity of mp-942733 at 800–1400 K). `configs/smoke.yaml` is a tiny
+  CPU smoke test.
+- `run_audit.py` — CLI entry point (`python run_audit.py --config configs/llzo.yaml`).
+- `cloud/` — Bohrium batch-job scripts for GPU runs (`cloud/README.md`).
+- `tests/` — unit tests for the framework core, no model downloads required.
+
+The LLZO run covered CHGNet 0.3.0 and MACE-MP-0 (medium); DPA-4 was skipped
+because deepmd-kit is not pip-resolvable alongside mace-torch. Every backend
+is optional — a missing model is reported under `skipped_models` in
+`report.json`, never crashes the run. Results, including recorded-as-is
+anomalies (a catastrophic MACE relaxation on O₂; a negative MD diffusivity at
+1200 K from the small supercell), are in `data/runs/llzo/` with the run
+narrative in [`data/runs/llzo/NOTES.md`](data/runs/llzo/NOTES.md).
+
+---
+
 ## Repository Layout
 
 ```
 .
 ├── phase_space_benchmark.py   # Phase-space benchmark (150 structures, single-point energies)
 ├── battery_mlip_pilot.py      # LLZO relaxation benchmark (3 quaternary structures)
+├── mlip_audit/                # Multi-model audit framework (config -> protocols -> metrics)
+├── run_audit.py               # CLI entry point for the audit framework
+├── configs/                   # Audit configs (llzo.yaml, smoke.yaml)
+├── tests/                     # Unit tests for the audit core
+├── cloud/                     # Bohrium batch-job scripts (setup/submit/run_job)
+├── models/                    # Model checkpoints (DPA-4 training input; .pt fetched at runtime)
 ├── environment.yml            # Conda environment specification
 ├── requirements.txt           # pip dependencies
 ├── RESULTS.md                 # Full results and error analysis (Chinese)
 ├── .env.example               # Template for MP_API_KEY (not committed)
 └── data/                      # Outputs after running
-    ├── chgnet_vs_mp_llzo.csv  #   relaxation-vs-DFT table
-    ├── metrics.json           #   headline metrics
+    ├── chgnet_vs_mp_llzo.csv  #   relaxation-vs-DFT table (single-model pilot)
+    ├── metrics.json           #   headline metrics (single-model pilot)
     ├── phase_space/           #   per-structure CSV + hull metrics + plots
+    ├── runs/llzo/             #   multi-model audit results (report.json, metrics, CSVs)
     ├── raw/                   #   MP API snapshot (not committed)
     └── checkpoints/           #   resume checkpoints (not committed)
 ```

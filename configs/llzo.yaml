@@ -1,0 +1,41 @@
+# Li-La-Zr-O (LLZO) audit: three generations of universal MLIPs, one protocol.
+name: llzo
+elements: [Li, La, Zr, O]
+mp_cache: data/raw/mp_phase_space.json
+out_dir: data/runs/llzo
+
+single_point: true
+
+models:
+  - name: chgnet-0.3.0
+    type: chgnet
+    device: cuda
+  - name: mace-mp-0-medium
+    type: mace
+    variant: medium
+    device: cuda
+    dtype: float64
+  - name: dpa4-mini-omat24
+    type: deepmd
+    device: cuda
+    checkpoint: models/dpa4/DPA4-Mini-OMat24-v20260805.pt  # fetched by cloud/setup.sh
+
+relaxation:
+  enabled: true
+  fmax: 0.1
+  steps: 100
+  relax_cell: true
+
+# LLZO Li-ion diffusivity: Langevin equilibration, NVE production, MSD slope.
+md:
+  enabled: true
+  material_id: mp-942733  # Li7La3Zr2O12
+  supercell: [1, 1, 1]
+  temperatures: [800, 1000, 1200, 1400]
+  equil_ps: 5
+  prod_ps: 20
+  timestep_fs: 1.0
+  sample_every: 20
+
+candidate_window_ev: 0.05
+bootstrap_resamples: 2000

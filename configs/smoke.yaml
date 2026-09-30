@@ -1,0 +1,27 @@
+# Minimal end-to-end smoke config: 12 structures, CHGNet on CPU, no MD.
+# (--limit 12 is the smallest prefix containing all four elemental entries,
+#  which the phase diagram requires.)
+# Usage: python run_audit.py --config configs/smoke.yaml --limit 12
+name: smoke
+elements: [Li, La, Zr, O]
+mp_cache: data/raw/mp_phase_space.json
+out_dir: data/runs/smoke
+
+single_point: true
+
+models:
+  - name: chgnet-0.3.0
+    type: chgnet
+    device: cpu
+
+relaxation:
+  enabled: true
+  fmax: 0.1
+  steps: 20
+  relax_cell: true
+
+md:
+  enabled: false
+
+candidate_window_ev: 0.05
+bootstrap_resamples: 50

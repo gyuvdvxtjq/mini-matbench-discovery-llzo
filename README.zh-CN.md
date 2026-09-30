@@ -55,20 +55,50 @@
 
 ---
 
+## 多模型原子间势审计框架（`mlip_audit`）
+
+上文的单模型试点被一个通用审计框架扩展：让**多个通用原子间势在同一套协议**下
+完成评测并横向对比：
+
+- `mlip_audit/`——配置驱动的运行器：单点能、晶胞弛豫、NVT→NVE 分子动力学，
+  每条记录写入 `data/runs/llzo/checkpoints.jsonl`，支持断点续跑，新增模型不会
+  触发已有模型的重复计算。
+- `configs/llzo.yaml`——LLZO 审计配置（Li/La/Zr/O 相空间 + mp-942733 在
+  800–1400 K 的锂离子扩散率）；`configs/smoke.yaml` 为可在 CPU 上跑通的小型
+  冒烟测试。
+- `run_audit.py`——命令行入口（`python run_audit.py --config configs/llzo.yaml`）。
+- `cloud/`——Bohrium 云端批量任务脚本（详见 `cloud/README.md`）。
+- `tests/`——框架核心单元测试，无需下载任何模型。
+
+本次 LLZO 运行覆盖 CHGNet 0.3.0 与 MACE-MP-0（medium）；DPA-4 因 deepmd-kit
+无法与 mace-torch 共存（pip 依赖冲突）而跳过。所有后端均为可选——缺某个模型
+只会记入 `report.json` 的 `skipped_models`，不会让整个任务失败。结果（含按原样
+保留的异常：MACE 在 O₂ 弛豫上的灾难性失效、小超胞导致 1200 K 扩散率为负）位于
+`data/runs/llzo/`，运行说明见 [`data/runs/llzo/NOTES.md`](data/runs/llzo/NOTES.md)。
+
+---
+
 ## 仓库结构
 
 ```
 .
 ├── phase_space_benchmark.py   # 相空间基准（150 个结构，单点能）
 ├── battery_mlip_pilot.py      # LLZO 结构弛豫（3 个四元结构）
+├── mlip_audit/                # 多模型审计框架（配置 -> 协议 -> 指标）
+├── run_audit.py               # 审计框架的命令行入口
+├── configs/                   # 审计配置（llzo.yaml、smoke.yaml）
+├── tests/                     # 审计核心单元测试
+├── cloud/                     # Bohrium 云端任务脚本（setup/submit/run_job）
+├── models/                    # 模型文件（DPA-4 训练输入；.pt 运行时拉取）
 ├── environment.yml            # Conda 环境配置
 ├── requirements.txt           # pip 依赖清单
 ├── RESULTS.md                 # 完整结果与误差分析
 ├── .env.example               # MP_API_KEY 模板（不入库）
 └── data/                      # 运行后生成的输出
-    ├── chgnet_vs_mp_llzo.csv  #   弛豫 vs DFT 对比表
-    ├── metrics.json           #   核心指标
+    ├── chgnet_vs_mp_llzo.csv  #   弛豫 vs DFT 对比表（单模型试点）
+    ├── metrics.json           #   核心指标（单模型试点）
     ├── phase_space/           #   逐结构 CSV + 凸包指标 + 图表
+    ├── runs/llzo/             #   多模型审计结果（report.json、指标、CSV）
     ├── raw/                   #   MP API 原始快照（不入库）
     └── checkpoints/           #   断点续跑 checkpoint（不入库）
 ```

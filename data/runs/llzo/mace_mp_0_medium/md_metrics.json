@@ -1,0 +1,38 @@
+{
+  "points": [
+    {
+      "temperature": 800,
+      "diffusivity_cm2_per_s": 2.516683534600702e-09,
+      "msd_final_A2": 0.1234395109996151,
+      "msd_fit_r2": 0.07170249695445752
+    },
+    {
+      "temperature": 1000,
+      "diffusivity_cm2_per_s": 7.694072974185767e-07,
+      "msd_final_A2": 1.366442178836307,
+      "msd_fit_r2": 0.958950108004591
+    },
+    {
+      "temperature": 1200,
+      "diffusivity_cm2_per_s": -4.1796599176323806e-08,
+      "msd_final_A2": 0.2832411712235631,
+      "msd_fit_r2": 0.03479743457382645
+    },
+    {
+      "temperature": 1400,
+      "diffusivity_cm2_per_s": 1.7937623467024513e-06,
+      "msd_final_A2": 2.084717282514852,
+      "msd_fit_r2": 0.9329775224892387
+    }
+  ],
+  "arrhenius": {
+    "activation_energy_eV": NaN,
+    "prefactor_cm2_per_s": NaN,
+    "fit_temperatures": [
+      800.0,
+      1000.0,
+      1200.0,
+      1400.0
+    ]
+  }
+}

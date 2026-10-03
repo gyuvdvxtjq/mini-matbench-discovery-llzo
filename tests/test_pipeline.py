@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import sys
 import types
+from pathlib import Path
 
 import pytest
 
@@ -101,6 +102,49 @@ def test_config_paths_resolve_against_the_repo_root(tmp_path):
         encoding="utf-8",
     )
     assert load_config(cfg_file).out_dir == absolute
+
+
+SHIPPED_CONFIGS = ["configs/llzo.yaml", "configs/smoke.yaml"]
+
+
+@pytest.mark.parametrize("relative", SHIPPED_CONFIGS)
+def test_shipped_configs_pin_no_device(relative):
+    """A hard-coded device is a regression: it breaks laptops and workers alike."""
+    import yaml
+
+    repo_root = Path(__file__).resolve().parent.parent
+    raw = yaml.safe_load((repo_root / relative).read_text(encoding="utf-8"))
+    assert raw["models"], "config declares no models"
+    for model in raw["models"]:
+        assert "device" not in model, f"{relative}: {model['name']} pins a device"
+
+
+@pytest.mark.parametrize("relative", SHIPPED_CONFIGS)
+def test_shipped_configs_load_with_auto_devices(relative):
+    repo_root = Path(__file__).resolve().parent.parent
+    cfg = load_config(repo_root / relative)
+    assert cfg.models
+    for spec in cfg.models:
+        assert spec.device == "auto"
+    assert cfg.mp_cache.is_absolute() and cfg.out_dir.is_absolute()
+
+
+def test_llzo_config_declares_the_three_models_and_no_checkpoint_path():
+    """The DPA-4 weights come from DPA4_CHECKPOINT, never from the config."""
+    repo_root = Path(__file__).resolve().parent.parent
+    cfg = load_config(repo_root / "configs/llzo.yaml")
+    by_name = {spec.name: spec for spec in cfg.models}
+    assert set(by_name) == {
+        "chgnet-0.3.0",
+        "mace-mp-0-medium",
+        "dpa4-mini-omat24",
+    }
+    assert all(spec.checkpoint == "" for spec in by_name.values())
+    assert by_name["dpa4-mini-omat24"].type == "deepmd"
+    # Every declared backend type must have a documented setup script.
+    for spec in by_name.values():
+        assert spec.type in BACKEND_SETUP
+        assert Path(repo_root / BACKEND_SETUP[spec.type][1]).is_file()
 
 
 # ------------------------------------------------------------ backend errors

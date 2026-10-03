@@ -1,4 +1,8 @@
 # Li-La-Zr-O (LLZO) audit: three generations of universal MLIPs, one protocol.
+#
+# No `device:` key is set anywhere: the runner resolves it to `auto`, i.e. cuda
+# when a GPU is usable and cpu otherwise, so this file works unchanged on a
+# laptop and on a Bohrium worker. `--device` overrides it.
 name: llzo
 elements: [Li, La, Zr, O]
 mp_cache: data/raw/mp_phase_space.json
@@ -9,16 +13,15 @@ single_point: true
 models:
   - name: chgnet-0.3.0
     type: chgnet
-    device: cuda
   - name: mace-mp-0-medium
     type: mace
     variant: medium
-    device: cuda
     dtype: float64
+  # The .pt is not committed (CC-BY-NC-4.0, non-commercial): mlip_audit reads
+  # its location from the DPA4_CHECKPOINT environment variable, which
+  # cloud/setup_deepmd.sh exports after downloading it.
   - name: dpa4-mini-omat24
     type: deepmd
-    device: cuda
-    checkpoint: models/dpa4/DPA4-Mini-OMat24-v20260805.pt  # fetched by cloud/setup.sh
 
 relaxation:
   enabled: true

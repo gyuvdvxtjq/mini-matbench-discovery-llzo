@@ -1,11 +1,22 @@
-"""Orchestration: config -> per-model protocol runs -> metrics -> report."""
+"""Orchestration: config -> per-model protocol runs -> metrics -> report.
+
+The runner is deliberately restartable and additive. Because mace-torch and
+deepmd-kit cannot share an environment (see cloud/setup_base.sh), the audit is
+expected to be executed in several passes -- one per environment -- each
+passing a subset of models. Every record is therefore addressed by
+(model, protocol, params-hash, material_id) rather than by "this run", so:
+
+* a second pass skips whatever an earlier pass already computed, and
+* `report.json` is merged, never overwritten, so the halves add up.
+"""
 
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 import pandas as pd
 
@@ -19,11 +30,15 @@ from .checkpoint import CheckpointStore
 from .config import AuditConfig
 from .data import load_phase_space
 from .md import analyze_md, run_md
-from .models import ModelUnavailable, build_calculator
+from .models import ModelUnavailable, build_calculator, resolve_device
 
 
 def _slug(name: str) -> str:
-    return name.replace(".", "").replace("-", "_").replace(" ", "_")
+    """Filesystem-safe model name. Dots are dropped, other separators become
+    underscores: 'chgnet-0.3.0' -> 'chgnet_030'. This maps the model names in
+    configs/llzo.yaml onto the committed data/runs/llzo/ subdirectories, so it
+    must not change without renaming those directories too."""
+    return re.sub(r"[^A-Za-z0-9]+", "_", name.replace(".", ""))
 
 
 def _model_protocol_frames(
@@ -55,10 +70,49 @@ def _model_protocol_frames(
     return frames
 
 
+def _load_existing_report(path: Path) -> dict[str, Any]:
+    """Previous passes' results, so a split run does not erase them."""
+    if not path.exists():
+        return {"skipped_models": {}}
+    try:
+        previous = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {"skipped_models": {}}
+    if not isinstance(previous, dict):
+        return {"skipped_models": {}}
+    previous.setdefault("skipped_models", {})
+    return previous
+
+
+def _collect_relax_frames(
+    out_dir: Path, config: AuditConfig, fresh: dict[str, pd.DataFrame]
+) -> dict[str, pd.DataFrame]:
+    """Relaxation frames for every model with results on disk.
+
+    Models computed in an earlier pass are read back from their per-model CSV,
+    so cross-model attribution spans the whole audit rather than only the
+    models that happened to run in this process. Frames computed in this pass
+    always win over the on-disk copy.
+    """
+    frames: dict[str, pd.DataFrame] = dict(fresh)
+    if not config.relax.enabled:
+        return frames
+    names_by_slug = {_slug(spec.name): spec.name for spec in config.models}
+    for csv_path in sorted(out_dir.glob("*/relaxation.csv")):
+        model = names_by_slug.get(csv_path.parent.name, csv_path.parent.name)
+        if model in frames:
+            continue
+        try:
+            frames[model] = pd.read_csv(csv_path)
+        except (OSError, ValueError) as exc:
+            print(f"  skip stale {csv_path}: {exc}", flush=True)
+    return frames
+
+
 def run_audit(
     config: AuditConfig,
     *,
-    only_model: str | None = None,
+    only_models: Iterable[str] | None = None,
     device_override: str | None = None,
     limit: int | None = None,
 ) -> dict[str, Any]:
@@ -70,19 +124,20 @@ def run_audit(
     out_dir.mkdir(parents=True, exist_ok=True)
     store = CheckpointStore(out_dir / "checkpoints.jsonl")
 
-    all_metrics: dict[str, Any] = {"skipped_models": {}}
+    wanted = set(only_models) if only_models else None
+    report = _load_existing_report(out_dir / "report.json")
+    report.setdefault("skipped_models", {})
     relax_frames: dict[str, pd.DataFrame] = {}
-    md_results: dict[str, Any] = {}
 
     for spec in config.models:
-        if not spec.enabled or (only_model and spec.name != only_model):
+        if not spec.enabled or (wanted is not None and spec.name not in wanted):
             continue
-        spec = replace(spec, device=device_override or spec.device)
+        spec = replace(spec, device=resolve_device(spec.device, device_override))
         try:
             calculator = build_calculator(spec)
         except ModelUnavailable as exc:
-            print(f"skip {spec.name}: {exc}", flush=True)
-            all_metrics["skipped_models"][spec.name] = str(exc)
+            print(f"skip {spec.name} (device={spec.device}): {exc.report()}", flush=True)
+            report["skipped_models"][spec.name] = exc.report()
             continue
 
         model_dir = out_dir / _slug(spec.name)
@@ -119,15 +174,15 @@ def run_audit(
                     config.md,
                     model_dir,
                 )
-                md_results[spec.name] = analyze_md(md_records, config.md, model_dir)
-                model_metrics["md"] = md_results[spec.name]
+                model_metrics["md"] = analyze_md(md_records, config.md, model_dir)
         write_metrics(out_dir, _slug(spec.name), model_metrics)
-        all_metrics[spec.name] = model_metrics
+        report[spec.name] = model_metrics
 
-    if len(relax_frames) >= 2:
-        all_metrics["cross_model_attribution"] = cross_model_attribution(relax_frames)
+    attribution_frames = _collect_relax_frames(out_dir, config, relax_frames)
+    if len(attribution_frames) >= 2:
+        report["cross_model_attribution"] = cross_model_attribution(attribution_frames)
     (out_dir / "report.json").write_text(
-        json.dumps(all_metrics, indent=2, ensure_ascii=False), encoding="utf-8"
+        json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    print(json.dumps(all_metrics, indent=2, ensure_ascii=False))
-    return all_metrics
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+    return report

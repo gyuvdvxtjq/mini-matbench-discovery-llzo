@@ -8,13 +8,27 @@ from typing import Any
 
 import yaml
 
+# Repository root, derived from this file so that configs can spell out
+# repo-relative paths ("data/runs/llzo") without depending on the caller's
+# working directory. Tests pass absolute paths and are unaffected.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Placeholder device meaning "cuda if a GPU is usable, otherwise cpu".
+AUTO_DEVICE = "auto"
+
+
+def repo_path(value: str | Path) -> Path:
+    """Resolve a possibly-relative path against the repository root."""
+    path = Path(value)
+    return path if path.is_absolute() else REPO_ROOT / path
+
 
 @dataclass
 class ModelSpec:
     name: str
     type: str  # chgnet | mace | deepmd
     enabled: bool = True
-    device: str = "cpu"
+    device: str = AUTO_DEVICE
     variant: str = ""  # e.g. mace model size
     checkpoint: str = ""  # deepmd model file, local path or hf:// repo
     dtype: str = "float64"
@@ -60,7 +74,7 @@ def _model(raw: dict[str, Any]) -> ModelSpec:
         name=raw["name"],
         type=raw["type"],
         enabled=bool(raw.get("enabled", True)),
-        device=str(raw.get("device", "cpu")),
+        device=str(raw.get("device", AUTO_DEVICE)),
         variant=str(raw.get("variant", "")),
         checkpoint=str(raw.get("checkpoint", "")),
         dtype=str(raw.get("dtype", "float64")),
@@ -95,6 +109,6 @@ def load_config(path: str | Path) -> AuditConfig:
         single_point=bool(raw.get("single_point", True)),
         candidate_window_ev=float(raw.get("candidate_window_ev", 0.05)),
         bootstrap_resamples=int(raw.get("bootstrap_resamples", 2000)),
-        mp_cache=Path(raw.get("mp_cache", "data/raw/mp_phase_space.json")),
-        out_dir=Path(raw.get("out_dir", "data/runs/audit")),
+        mp_cache=repo_path(raw.get("mp_cache", "data/raw/mp_phase_space.json")),
+        out_dir=repo_path(raw.get("out_dir", "data/runs/audit")),
     )

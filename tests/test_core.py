@@ -62,7 +62,10 @@ def test_load_config(tmp_path):
     assert cfg.name == "t"
     assert cfg.elements == ["Li", "O"]
     assert cfg.relax.enabled is False
-    assert cfg.models[0].device == "cpu"
+    # Since 0.3.0 a config without a `device` key means "auto" (cuda when a
+    # GPU is usable, else cpu) rather than a hard-coded cpu; see
+    # mlip_audit.models.resolve_device.
+    assert cfg.models[0].device == "auto"
 
 
 def _synthetic_records(n: int = 6) -> list[dict]:

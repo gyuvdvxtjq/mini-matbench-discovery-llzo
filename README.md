@@ -8,7 +8,7 @@
 
 ## Key findings
 
-Three things came out of running three universal interatomic potentials through one identical protocol over 150 Li–La–Zr–O structures:
+The reference run executed two of the three configured models (CHGNet 0.3.0 and MACE-MP-0 medium) over 150 Li–La–Zr–O structures; DPA-4 is wired in but was not executed (see [Limitations](#limitations)). Three things came out of that run:
 
 1. **La-rich, Li-excess defect supercells are systematically flattened.** The two exact LLZO supercells are underestimated by **≈ 60 meV/atom** in hull distance (−59 to −63 meV/atom), and the error is almost entirely their *own* formation energy sitting too low — not the competing phases being pushed down. [`RESULTS.md` §4.1](RESULTS.md)
 2. **A stable-phase verdict is not usable; a 50 meV/atom candidate window is.** Strict stable-phase F1 is **0.444**, while the same models score **F1 = 0.813** at the 50 meV/atom candidate window — the gap is dominated by ranking flips among elemental polymorphs a few meV/atom apart. [`RESULTS.md` §4.3](RESULTS.md)
@@ -112,10 +112,16 @@ them together; this is enforced by
   its F1 has a wide bootstrap interval ([0.182, 0.667]) and swings to 0.556
   when elemental polymorphs are removed. Treat it as directional; the
   50 meV/atom candidate window (57 positives) is the robust metric.
-- **Two of three models were skipped in the reference run.** The committed
-  results cover CHGNet and MACE-MP-0; DPA-4 was skipped for the dependency
-  conflict described above, so the cross-model comparison is two-wide and the
-  split environments have not been exercised with real DPA-4 weights here.
+- **Two of three models were executed; DPA-4 is not.** The committed results
+  cover CHGNet and MACE-MP-0. DPA-4 was recorded under `skipped_models` rather
+  than run, so the cross-model comparison is two-wide, and the split
+  environments have not been exercised with real DPA-4 weights here. This is a
+  deliberate scope decision, not an oversight: the two-model comparison is
+  complete and reproducible as committed, and the third model is one command
+  away (`bash cloud/run_split.sh --env deepmd`) once a CUDA-12-capable worker
+  with the DPA-4 weights is available. Everything the framework needs to run it
+  — the adapter, the checkpoint key, the environment script, the weight
+  download — is in place and covered by tests using a stub backend.
 - **Anomalies are recorded, not repaired.** A catastrophic MACE relaxation on
   O₂ (−3.5e9 eV/atom, collapsed cell) drags the global MACE hull MAE; it is
   kept in `report.json` and documented in `data/runs/llzo/NOTES.md`. Quoting

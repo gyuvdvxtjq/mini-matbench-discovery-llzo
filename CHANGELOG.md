@@ -16,6 +16,15 @@ config-driven `mlip_audit` framework.
 number. It is the release that makes the third model actually runnable and
 cleans up what the two generations left behind.
 
+**Scope decision recorded here:** DPA-4 remains unexecuted in the reference run.
+The committed benchmark is two-wide (CHGNet 0.3.0 + MACE-MP-0 medium). Running
+the third model needs a CUDA-12-capable worker plus the CC-BY-NC-4.0 weights,
+which were not available during this work. Rather than block the release on
+hardware, the split-environment path was built and tested with a stub backend,
+and the run itself is left as one command
+(`bash cloud/run_split.sh --env deepmd`). No claim in the README or RESULTS.md
+depends on DPA-4 having run.
+
 ### Added
 
 - `cloud/setup_base.sh`, `cloud/setup_mace.sh`, `cloud/setup_deepmd.sh`, replacing

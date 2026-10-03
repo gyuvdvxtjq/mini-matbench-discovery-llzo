@@ -1,10 +1,16 @@
-"""Evaluate CHGNet relaxation energies on Materials Project LLZO structures."""
+"""Evaluate CHGNet relaxation energies on Materials Project LLZO structures.
+
+v0.1 of this benchmark, archived. It hard-codes CHGNet and produces the numbers
+in ``RESULTS.md`` section 3 (the exact-LLZO relaxation layer) together with the
+sub-100 meV/atom phase-space estimates of section 2. Superseded by
+``mlip_audit``; kept runnable so those numbers stay reproducible, see
+``legacy/README.md``.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import platform
 import sys
 import time
@@ -13,15 +19,26 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from dotenv import load_dotenv
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from mlip_audit.config import repo_path  # noqa: E402
+from mlip_audit.models import scalar  # noqa: E402
+from mlip_audit.mp import (  # noqa: E402
+    fetch_chemsys,
+    require_api_key,
+    without_structure,
+)
 
 CHEMSYS = "Li-La-Zr-O"
 DEFAULT_LIMIT = 20
-DATA_DIR = Path("data")
-RAW_PATH = DATA_DIR / "raw" / "mp_llzo.json"
-CHECKPOINT_PATH = DATA_DIR / "checkpoints" / "relaxations.jsonl"
-RESULT_PATH = DATA_DIR / "chgnet_vs_mp_llzo.csv"
-METRICS_PATH = DATA_DIR / "metrics.json"
+
+# v0.1 outputs are archived with the scripts that produce them. The cached MP
+# snapshot stays at the repo-level data/raw/ location shared with mlip_audit.
+OUT_DIR = repo_path("legacy/data")
+RAW_PATH = repo_path("data/raw/mp_llzo.json")
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,82 +51,43 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-relax-cell", action="store_true")
     parser.add_argument("--fetch-only", action="store_true")
     parser.add_argument("--fresh", action="store_true", help="Ignore prior checkpoints.")
+    parser.add_argument(
+        "--out-dir",
+        default=None,
+        help="Where to write outputs (default: legacy/data, resolved from the repo root)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Stop after resolving the data source; no model is loaded.",
+    )
     return parser.parse_args()
-
-
-def require_api_key() -> str:
-    load_dotenv()
-    api_key = os.getenv("MP_API_KEY", "").strip()
-    if not api_key or api_key == "replace_with_your_key":
-        raise RuntimeError("MP_API_KEY is missing. Copy .env.example to .env and set it.")
-    return api_key
 
 
 def fetch_mp_structures(api_key: str, limit: int, max_sites: int) -> list[dict[str, Any]]:
     """Fetch exact four-element LLZO records and persist a reproducible local cache."""
-    from mp_api.client import MPRester
-
-    fields = [
-        "material_id",
-        "formula_pretty",
-        "chemsys",
-        "structure",
-        "nsites",
-        "energy_per_atom",
-        "formation_energy_per_atom",
-        "energy_above_hull",
-        "is_stable",
-    ]
-    with MPRester(api_key) as mpr:
-        docs = mpr.materials.summary.search(
-            chemsys=[CHEMSYS],
-            num_sites=(1, max_sites),
-            fields=fields,
-            num_chunks=1,
-            chunk_size=max(limit, 100),
-        )
-
-    docs = sorted(docs, key=lambda doc: (doc.nsites, str(doc.material_id)))[:limit]
-    records = [
-        {
-            "material_id": str(doc.material_id),
-            "formula": doc.formula_pretty,
-            "chemsys": doc.chemsys,
-            "nsites": int(doc.nsites),
-            "mp_energy_per_atom": float(doc.energy_per_atom),
-            "mp_formation_energy_per_atom": float(doc.formation_energy_per_atom),
-            "mp_energy_above_hull": float(doc.energy_above_hull),
-            "mp_is_stable": bool(doc.is_stable),
-            "structure": doc.structure.as_dict(),
-        }
-        for doc in docs
-    ]
+    docs = fetch_chemsys(api_key, CHEMSYS, max_sites=(1, max_sites))
+    docs = sorted(docs, key=lambda row: (row["nsites"], row["material_id"]))[:limit]
     RAW_PATH.parent.mkdir(parents=True, exist_ok=True)
-    RAW_PATH.write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
-    return records
+    RAW_PATH.write_text(json.dumps(docs, ensure_ascii=False), encoding="utf-8")
+    return docs
 
 
-def load_completed() -> dict[str, dict[str, Any]]:
-    if not CHECKPOINT_PATH.exists():
+def load_completed(path: Path) -> dict[str, dict[str, Any]]:
+    if not path.exists():
         return {}
     completed: dict[str, dict[str, Any]] = {}
-    for line in CHECKPOINT_PATH.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         if line.strip():
             record = json.loads(line)
             completed[record["material_id"]] = record
     return completed
 
 
-def append_checkpoint(record: dict[str, Any]) -> None:
-    CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with CHECKPOINT_PATH.open("a", encoding="utf-8") as handle:
+def append_checkpoint(record: dict[str, Any], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-
-
-def scalar(value: Any) -> float:
-    if hasattr(value, "detach"):
-        value = value.detach().cpu().numpy()
-    return float(np.asarray(value).reshape(-1)[0])
 
 
 def relax_records(
@@ -120,13 +98,15 @@ def relax_records(
     fmax: float,
     relax_cell: bool,
     fresh: bool,
+    out_dir: Path,
 ) -> list[dict[str, Any]]:
     from chgnet.model import CHGNet, StructOptimizer
     from pymatgen.core import Structure
 
-    if fresh and CHECKPOINT_PATH.exists():
-        CHECKPOINT_PATH.unlink()
-    completed = {} if fresh else load_completed()
+    checkpoint_path = out_dir / "checkpoints" / "relaxations.jsonl"
+    if fresh and checkpoint_path.exists():
+        checkpoint_path.unlink()
+    completed = {} if fresh else load_completed(checkpoint_path)
     model = CHGNet.load()
     optimizer = StructOptimizer(model=model, use_device=device)
 
@@ -139,7 +119,7 @@ def relax_records(
             continue
 
         started = time.perf_counter()
-        base = {key: value for key, value in source.items() if key != "structure"}
+        base = without_structure(source)
         base.update(
             {
                 "model": "CHGNet-0.3.0",
@@ -182,7 +162,7 @@ def relax_records(
                 "elapsed_seconds": round(time.perf_counter() - started, 3),
                 "error": f"{type(exc).__name__}: {exc}",
             }
-        append_checkpoint(record)
+        append_checkpoint(record, checkpoint_path)
         output.append(record)
         print(
             f"[{index}/{len(records)}] {material_id} {record['status']} "
@@ -191,10 +171,12 @@ def relax_records(
     return output
 
 
-def analyze(records: list[dict[str, Any]]) -> dict[str, Any]:
-    DATA_DIR.mkdir(exist_ok=True)
+def analyze(records: list[dict[str, Any]], out_dir: Path) -> dict[str, Any]:
+    result_path = out_dir / "chgnet_vs_mp_llzo.csv"
+    metrics_path = out_dir / "metrics.json"
+    out_dir.mkdir(parents=True, exist_ok=True)
     frame = pd.DataFrame(records)
-    frame.to_csv(RESULT_PATH, index=False, encoding="utf-8-sig")
+    frame.to_csv(result_path, index=False, encoding="utf-8-sig")
     ok = frame[frame["status"] == "ok"].copy()
     if ok.empty:
         raise RuntimeError("No successful relaxation is available for analysis.")
@@ -208,7 +190,7 @@ def analyze(records: list[dict[str, Any]]) -> dict[str, Any]:
     ok["abs_energy_error_eV_per_atom"] = ok["energy_error_eV_per_atom"].abs()
     for column in ("energy_error_eV_per_atom", "abs_energy_error_eV_per_atom"):
         frame.loc[ok.index, column] = ok[column]
-    frame.to_csv(RESULT_PATH, index=False, encoding="utf-8-sig")
+    frame.to_csv(result_path, index=False, encoding="utf-8-sig")
 
     # Rank correlation is meaningless on tiny samples; require enough points
     # before reporting it (the exact LLZO query currently returns only 3).
@@ -248,23 +230,23 @@ def analyze(records: list[dict[str, Any]]) -> dict[str, Any]:
         "python": sys.version.split()[0],
         "platform": platform.platform(),
     }
-    METRICS_PATH.write_text(
+    metrics_path.write_text(
         json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     ok.nlargest(3, "abs_energy_error_eV_per_atom").to_csv(
-        DATA_DIR / "largest_errors.csv", index=False, encoding="utf-8-sig"
+        out_dir / "largest_errors.csv", index=False, encoding="utf-8-sig"
     )
-    make_plots(ok)
+    make_plots(ok, out_dir)
     return metrics
 
 
-def make_plots(frame: pd.DataFrame) -> None:
+def make_plots(frame: pd.DataFrame, out_dir: Path) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    plots = DATA_DIR / "plots"
+    plots = out_dir / "plots"
     plots.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -288,11 +270,16 @@ def make_plots(frame: pd.DataFrame) -> None:
 
 def main() -> None:
     args = parse_args()
+    out_dir = Path(args.out_dir) if args.out_dir else OUT_DIR
+    if not out_dir.is_absolute():
+        out_dir = repo_path(out_dir)
     records = fetch_mp_structures(require_api_key(), args.limit, args.max_sites)
     print(f"Materials Project returned {len(records)} exact {CHEMSYS} structures.")
     if not records:
         raise RuntimeError("No matching Materials Project structures were returned.")
-    if args.fetch_only:
+    if args.fetch_only or args.dry_run:
+        if args.dry_run:
+            print(f"--dry-run: would write {out_dir/'chgnet_vs_mp_llzo.csv'}; stopping.")
         return
     relaxed = relax_records(
         records,
@@ -301,8 +288,9 @@ def main() -> None:
         fmax=args.fmax,
         relax_cell=not args.no_relax_cell,
         fresh=args.fresh,
+        out_dir=out_dir,
     )
-    metrics = analyze(relaxed)
+    metrics = analyze(relaxed, out_dir)
     print(json.dumps(metrics, indent=2, ensure_ascii=False))
 
 

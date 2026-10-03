@@ -11,11 +11,10 @@ from __future__ import annotations
 import json
 import sys
 import types
-from pathlib import Path
 
 import pytest
 
-from mlip_audit.config import AuditConfig, ModelSpec, RelaxSpec, load_config
+from mlip_audit.config import ModelSpec, load_config
 from mlip_audit.models import (
     BACKEND_SETUP,
     DPA4_CHECKPOINT_ENV,

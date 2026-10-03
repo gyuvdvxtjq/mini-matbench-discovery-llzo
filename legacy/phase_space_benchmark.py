@@ -1,21 +1,40 @@
-"""Benchmark CHGNet energies and convex-hull stability in Li-La-Zr-O phase space."""
+"""Benchmark CHGNet energies and convex-hull stability in Li-La-Zr-O phase space.
+
+v0.1 of this benchmark, archived. It hard-codes CHGNet, writes to
+``data/phase_space/`` and produces the numbers in ``RESULTS.md`` sections 1-3.
+Superseded by ``mlip_audit`` (multi-model, config-driven), which reports the
+same CHGNet single-point hull MAE. Kept runnable so those numbers stay
+reproducible; see ``legacy/README.md``.
+"""
 
 from __future__ import annotations
 
 import argparse
-import itertools
 import json
-import os
+import sys
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-from dotenv import load_dotenv
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from mlip_audit.config import repo_path  # noqa: E402
+from mlip_audit.models import scalar  # noqa: E402
+from mlip_audit.mp import (  # noqa: E402
+    chemical_systems,
+    fetch_chemsys,
+    load_phase_space,
+    require_api_key,
+    without_structure,
+)
 
 ELEMENTS = ("Li", "La", "Zr", "O")
-DATA_DIR = Path("data/phase_space")
-RAW_PATH = Path("data/raw/mp_phase_space.json")
+DATA_DIR = repo_path("data/phase_space")
+RAW_PATH = repo_path("data/raw/mp_phase_space.json")
 RESULT_PATH = DATA_DIR / "chgnet_phase_space.csv"
 METRICS_PATH = DATA_DIR / "metrics.json"
 
@@ -25,80 +44,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", choices=("cpu", "cuda", "mps"), default="cpu")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--use-cache", action="store_true")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Stop after resolving the data source; no model is loaded.",
+    )
     return parser.parse_args()
 
 
-def require_api_key() -> str:
-    load_dotenv()
-    key = os.getenv("MP_API_KEY", "").strip()
-    if not key or key == "replace_with_your_key":
-        raise RuntimeError("MP_API_KEY is missing from .env.")
-    return key
+def load_or_fetch(use_cache: bool) -> list[dict[str, Any]]:
+    """Cached snapshot if asked for, otherwise fetch it from Materials Project."""
+    if use_cache and RAW_PATH.exists():
+        return load_phase_space(RAW_PATH)
+    return fetch_phase_space_from_api()
 
 
-def chemical_systems() -> list[str]:
-    return [
-        "-".join(sorted(combo))
-        for size in range(1, len(ELEMENTS) + 1)
-        for combo in itertools.combinations(ELEMENTS, size)
-    ]
-
-
-def fetch_phase_space(api_key: str) -> list[dict[str, Any]]:
-    from mp_api.client import MPRester
-
-    fields = [
-        "material_id",
-        "formula_pretty",
-        "chemsys",
-        "structure",
-        "nsites",
-        "energy_per_atom",
-        "formation_energy_per_atom",
-        "energy_above_hull",
-        "is_stable",
-    ]
+def fetch_phase_space_from_api() -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    with MPRester(api_key) as mpr:
-        for chemsys in chemical_systems():
-            docs = mpr.materials.summary.search(
-                chemsys=[chemsys], fields=fields, chunk_size=1000
-            )
-            print(f"{chemsys}: {len(docs)}")
-            records.extend(
-                {
-                    "material_id": str(doc.material_id),
-                    "formula": doc.formula_pretty,
-                    "chemsys": doc.chemsys,
-                    "nsites": int(doc.nsites),
-                    "mp_energy_per_atom": float(doc.energy_per_atom),
-                    "mp_formation_energy_per_atom": float(
-                        doc.formation_energy_per_atom
-                    ),
-                    "mp_energy_above_hull": float(doc.energy_above_hull),
-                    "mp_is_stable": bool(doc.is_stable),
-                    "structure": doc.structure.as_dict(),
-                }
-                for doc in docs
-            )
+    api_key = require_api_key()
+    for chemsys in chemical_systems(ELEMENTS):
+        docs = fetch_chemsys(api_key, chemsys)
+        print(f"{chemsys}: {len(docs)}")
+        records.extend(docs)
     records.sort(key=lambda row: row["material_id"])
     RAW_PATH.parent.mkdir(parents=True, exist_ok=True)
     RAW_PATH.write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
     return records
-
-
-def load_or_fetch(api_key: str | None, use_cache: bool) -> list[dict[str, Any]]:
-    if use_cache and RAW_PATH.exists():
-        return json.loads(RAW_PATH.read_text(encoding="utf-8"))
-    if not api_key:
-        raise RuntimeError("MP_API_KEY is missing from .env.")
-    return fetch_phase_space(api_key)
-
-
-def scalar(value: Any) -> float:
-    if hasattr(value, "detach"):
-        value = value.detach().cpu().numpy()
-    return float(np.asarray(value).reshape(-1)[0])
 
 
 def predict_energies(
@@ -123,7 +94,7 @@ def predict_energies(
             for source, value in zip(batch_records, values, strict=True):
                 predictions.append(
                     {
-                        **{key: val for key, val in source.items() if key != "structure"},
+                        **without_structure(source),
                         "status": "ok",
                         "chgnet_energy_per_atom": scalar(value["e"]),
                         "error": "",
@@ -136,11 +107,7 @@ def predict_energies(
                     value = model.predict_structure(structure, task="e")
                     predictions.append(
                         {
-                            **{
-                                key: val
-                                for key, val in source.items()
-                                if key != "structure"
-                            },
+                            **without_structure(source),
                             "status": "ok",
                             "chgnet_energy_per_atom": scalar(value["e"]),
                             "error": "",
@@ -149,11 +116,7 @@ def predict_energies(
                 except Exception as exc:
                     predictions.append(
                         {
-                            **{
-                                key: val
-                                for key, val in source.items()
-                                if key != "structure"
-                            },
+                            **without_structure(source),
                             "status": "error",
                             "chgnet_energy_per_atom": np.nan,
                             "error": f"{type(exc).__name__}: {exc}",
@@ -316,9 +279,11 @@ def main() -> None:
     args = parse_args()
     # Cached runs are intentionally offline: no API key should be needed when
     # the raw Materials Project snapshot is already present.
-    api_key = None if args.use_cache and RAW_PATH.exists() else require_api_key()
-    source = load_or_fetch(api_key, args.use_cache)
+    source = load_or_fetch(args.use_cache)
     print(f"Total phase-space structures: {len(source)}")
+    if args.dry_run:
+        print(f"--dry-run: would write {RESULT_PATH} and {METRICS_PATH}; stopping.")
+        return
     predicted = predict_energies(source, args.device, args.batch_size)
     metrics = analyze(predicted)
     print(json.dumps(metrics, indent=2, ensure_ascii=False))

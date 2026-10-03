@@ -7,6 +7,7 @@ temperature, checkpointed; trajectories go to .traj files.
 
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 from typing import Any
@@ -157,8 +158,6 @@ def analyze_md(
             "fit_temperatures": temps.tolist(),
         }
     out_dir.mkdir(parents=True, exist_ok=True)
-    import json
-
     (out_dir / "md_metrics.json").write_text(
         json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8"
     )

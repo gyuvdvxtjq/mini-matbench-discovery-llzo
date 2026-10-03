@@ -118,7 +118,8 @@ def main() -> int:
     print()
     for path in written:
         if path:
-            print(f"wrote {path.relative_to(REPO_ROOT) if path.is_relative_to(REPO_ROOT) else path}")
+            shown = path.relative_to(REPO_ROOT) if path.is_relative_to(REPO_ROOT) else path
+            print(f"wrote {shown}")
     return 0
 
 

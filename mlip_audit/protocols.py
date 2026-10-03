@@ -14,16 +14,11 @@ import numpy as np
 
 from .checkpoint import CheckpointStore, make_key
 from .models import to_atoms
-
-MetaFn = Callable[[dict[str, Any]], dict[str, Any]]
+from .mp import without_structure
 
 
 def _max_force(atoms) -> float:
     return float(np.linalg.norm(atoms.get_forces(), axis=1).max())
-
-
-def _meta(record: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in record.items() if key != "structure"}
 
 
 def run_single_point(
@@ -46,7 +41,7 @@ def run_single_point(
             atoms = to_atoms(record["structure"])
             atoms.calc = calculator
             result = {
-                **_meta(record),
+                **without_structure(record),
                 "status": "ok",
                 "energy_per_atom": float(atoms.get_potential_energy()) / len(atoms),
                 "max_force": _max_force(atoms),
@@ -58,7 +53,7 @@ def run_single_point(
             }
         except Exception as exc:  # failures are benchmark evidence
             result = {
-                **_meta(record),
+                **without_structure(record),
                 "status": "error",
                 "elapsed_seconds": round(time.perf_counter() - started, 3),
                 "error": f"{type(exc).__name__}: {exc}",
@@ -113,7 +108,7 @@ def run_relaxation(
             initial_e, initial_f = history[0]
             final_e, final_f = history[-1]
             result = {
-                **_meta(record),
+                **without_structure(record),
                 "status": "ok",
                 "initial_e_per_atom": initial_e,
                 "relaxed_e_per_atom": final_e,
@@ -129,7 +124,7 @@ def run_relaxation(
             }
         except Exception as exc:
             result = {
-                **_meta(record),
+                **without_structure(record),
                 "status": "error",
                 "elapsed_seconds": round(time.perf_counter() - started, 3),
                 "error": f"{type(exc).__name__}: {exc}",

@@ -28,9 +28,9 @@ from .analysis import (
 )
 from .checkpoint import CheckpointStore
 from .config import AuditConfig
-from .data import load_phase_space
 from .md import analyze_md, run_md
 from .models import ModelUnavailable, build_calculator, resolve_device
+from .mp import load_phase_space
 
 
 def _slug(name: str) -> str:

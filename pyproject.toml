@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mini-matbench-discovery-llzo"
 version = "0.3.0"
-description = "Benchmarking universal MLIPs (CHGNet / MACE-MP-0 / DPA) for stability prediction in the Li-La-Zr-O phase space"
+description = "Benchmarking universal MLIPs (CHGNet / MACE-MP-0) for stability prediction in the Li-La-Zr-O phase space"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"  # mp-api 0.46.x is the binding constraint
@@ -44,30 +44,8 @@ dependencies = [
     "python-dotenv>=1.0",   # MP_API_KEY from .env
 ]
 
-# ---------------------------------------------------------------------------
-# WHY [mace] AND [deepmd] ARE SEPARATE EXTRAS -- DO NOT MERGE THEM
-# ---------------------------------------------------------------------------
-# mace-torch and deepmd-kit could not be resolved by pip in the same
-# environment (ResolutionImpossible); that is the recorded root cause of
-# DPA-4 being reported under `skipped_models` in the reference run, i.e. three
-# models planned, two delivered. See data/runs/llzo/NOTES.md.
-#
-# The fix applied here is to stop trying to co-install them, not to force a
-# resolution: each model runs in its own environment (cloud/run_split.sh
-# --env mace|deepmd) and both halves append to the same checkpoint file, which
-# is addressed by (model, protocol, params-hash, material_id) and therefore
-# composes across processes.
-#
-# Keeping the extras separate also keeps the two halves' dependency sets
-# independent: the mace half does not inherit deepmd-kit's ~1 GB CUDA wheels,
-# and vice versa. Note that co-installation now *resolves* against current
-# PyPI releases (mace-torch 0.3.16 + deepmd-kit 3.2.0), but that combination is
-# NOT what was validated with real model weights here -- the split is what has
-# been tested, so it stays the documented path.
-
 [project.optional-dependencies]
 mace = ["mace-torch>=0.3.0"]
-deepmd = ["deepmd-kit>=3.0"]
 dev = ["pytest>=8.0"]
 
 [project.urls]

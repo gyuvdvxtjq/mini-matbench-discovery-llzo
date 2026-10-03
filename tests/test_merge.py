@@ -88,8 +88,8 @@ def test_merge_survives_missing_models(tmp_path):
     metrics = metrics_table(frames, candidate_window=0.05, bootstrap_resamples=20)
     assert "hull_mae_eV_per_atom" in metrics["m-a"]
 
-    summary = markdown_summary(frames, metrics, expected=["m-a", "dpa4-mini-omat24"])
-    assert "dpa4-mini-omat24" in summary
+    summary = markdown_summary(frames, metrics, expected=["m-a", "m-b"])
+    assert "m-b" in summary
     assert "Missing" in summary
     assert "m-a" in summary
 
@@ -141,7 +141,7 @@ def test_merge_cli_reports_absent_models(tmp_path, monkeypatch, capsys):
         "out_dir: out\n"
         "models:\n"
         "  - {name: m-a, type: chgnet}\n"
-        "  - {name: dpa4-mini-omat24, type: deepmd}\n",
+        "  - {name: m-b, type: mace}\n",
         encoding="utf-8",
     )
     fig_dir = tmp_path / "figures"
@@ -159,12 +159,12 @@ def test_merge_cli_reports_absent_models(tmp_path, monkeypatch, capsys):
 
     out = capsys.readouterr().out
     assert "models absent" in out
-    assert "dpa4-mini-omat24" in out
+    assert "m-b" in out
     assert (fig_dir / "model_summary.md").exists()
     assert (fig_dir / "hull_mae_by_chemsys_multimodel.png").exists()
     assert (fig_dir / "hull_parity_multimodel.png").exists()
     summary = (fig_dir / "model_summary.md").read_text(encoding="utf-8")
-    assert "m-a" in summary and "dpa4-mini-omat24" in summary
+    assert "m-a" in summary and "m-b" in summary
 
 
 def test_merge_cli_errors_without_checkpoint(tmp_path, monkeypatch, capsys):
@@ -212,5 +212,4 @@ def test_slug_maps_model_names_onto_committed_directories():
     """These slugs name directories under data/runs/llzo/; they must not drift."""
     assert _slug("chgnet-0.3.0") == "chgnet_030"
     assert _slug("mace-mp-0-medium") == "mace_mp_0_medium"
-    assert _slug("dpa4-mini-omat24") == "dpa4_mini_omat24"
     assert _slug("a b.c-d") == "a_bc_d"

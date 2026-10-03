@@ -2,22 +2,17 @@
 
 Protocols never see a model object — they only see `ase.Atoms` with a
 calculator attached. Each adapter imports its backend lazily so that a
-missing optional dependency (mace, deepmd) disables one model instead of
-crashing the audit.
+missing optional dependency (mace) disables one model instead of crashing
+the audit.
 """
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from ase import Atoms
 
 from .config import ModelSpec
-
-# Environment variable holding the DPA-4 (deepmd) checkpoint file. Weights are
-# not committed (see .gitignore), so the path is supplied by the environment.
-DPA4_CHECKPOINT_ENV = "DPA4_CHECKPOINT"
 
 # model type -> (pip package providing it, setup script that installs it).
 # Used to make a skip self-explanatory: without this a missing backend only
@@ -25,7 +20,6 @@ DPA4_CHECKPOINT_ENV = "DPA4_CHECKPOINT"
 BACKEND_SETUP: dict[str, tuple[str, str]] = {
     "chgnet": ("chgnet", "cloud/setup_base.sh"),
     "mace": ("mace-torch", "cloud/setup_mace.sh"),
-    "deepmd": ("deepmd-kit", "cloud/setup_deepmd.sh"),
 }
 
 
@@ -97,28 +91,6 @@ def _unavailable(model_type: str, reason: str) -> ModelUnavailable:
     return ModelUnavailable(reason, package=package, setup_script=script)
 
 
-def _deepmd_checkpoint() -> str:
-    path = os.getenv(DPA4_CHECKPOINT_ENV, "").strip()
-    if not path:
-        # deepmd-kit itself is installed here, so name the setup script but not
-        # a missing package: the weights are what is absent.
-        raise ModelUnavailable(
-            f"{DPA4_CHECKPOINT_ENV} is not set: point it at the DPA-4 "
-            f"checkpoint file (e.g. "
-            f"{DPA4_CHECKPOINT_ENV}=models/dpa4/DPA4-Mini-OMat24-v20260805.pt). "
-            "The .pt is not committed (CC-BY-NC-4.0, non-commercial); "
-            "cloud/setup_deepmd.sh downloads it, see cloud/README.md.",
-            setup_script="cloud/setup_deepmd.sh",
-        )
-    if not os.path.isfile(path):
-        raise ModelUnavailable(
-            f"{DPA4_CHECKPOINT_ENV} points at a missing file: {path}. "
-            "Re-run cloud/setup_deepmd.sh or set the variable to a local copy.",
-            setup_script="cloud/setup_deepmd.sh",
-        )
-    return path
-
-
 def build_calculator(spec: ModelSpec):
     if spec.type == "chgnet":
         try:
@@ -137,10 +109,4 @@ def build_calculator(spec: ModelSpec):
             device=spec.device,
             default_dtype=spec.dtype,
         )
-    if spec.type == "deepmd":
-        try:
-            from deepmd.calculator import DP
-        except ImportError as exc:
-            raise _unavailable("deepmd", f"deepmd-kit not installed: {exc}") from exc
-        return DP(_deepmd_checkpoint())
     raise _unavailable("", f"unknown model type: {spec.type}")

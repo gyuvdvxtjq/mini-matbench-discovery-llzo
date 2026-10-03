@@ -7,13 +7,8 @@
 #
 # Usage:
 #   DRY_RUN=1 bash cloud/submit.sh    # validate the input tree only (free)
-#   bash cloud/submit.sh              # real submission (ENV=mace)
-#   ENV=deepmd bash cloud/submit.sh   # the DPA-4 half, in its own environment
+#   bash cloud/submit.sh              # real submission
 #   SKU_ID=<id> bash cloud/submit.sh  # override the machine SKU
-#
-# mace-torch and deepmd-kit cannot be installed in the same environment, so
-# the audit is submitted twice -- once per ENV -- and the two halves are
-# merged through data/runs/llzo/checkpoints.jsonl (see cloud/README.md).
 #
 # Defaults come from cloud/README.md: SKU c16_m64_1xNVIDIA 4090 (yuan 6/h),
 # image ubuntu:22.04-py3.10-cuda12.1. Confirm the exact submit flags against
@@ -23,19 +18,16 @@ set -euo pipefail
 # ------------------------------------------------------------------ config
 SKU_ID="${SKU_ID:-9985}"
 IMAGE="${IMAGE:-ubuntu:22.04-py3.10-cuda12.1}"
-JOB_NAME="${JOB_NAME:-llzo-mlip-audit-${ENV:-mace}}"
+JOB_NAME="${JOB_NAME:-llzo-mlip-audit}"
 INPUT_DIR="${INPUT_DIR:-.}"
-ENV="${ENV:-mace}"
-CMD="ENV=$ENV bash cloud/run_job.sh"
+CMD="bash cloud/run_job.sh"
 
 # --------------------------------------------------------------- validate
 required=(
     "run_audit.py"
     "cloud/run_job.sh"
-    "cloud/run_split.sh"
     "cloud/setup_base.sh"
     "cloud/setup_mace.sh"
-    "cloud/setup_deepmd.sh"
     "configs/llzo.yaml"
     "data/raw/mp_phase_space.json"
 )
@@ -68,11 +60,6 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
     echo "  name   : $JOB_NAME"
     echo "  cmd    : $CMD"
     echo "  input  : $INPUT_DIR"
-    if [ "$ENV" = "mace" ]; then
-        echo "Next: bash cloud/submit.sh && ENV=deepmd bash cloud/submit.sh"
-    else
-        echo "Next: ENV=mace bash cloud/submit.sh"
-    fi
     exit 0
 fi
 
@@ -85,10 +72,10 @@ bohr batchjob submit \
     --cmd "$CMD" \
     "$INPUT_DIR"
 
-echo "Submitted ($ENV). Then:"
+echo "Submitted. Then:"
 echo "  bohr batchjob list --status pending,running -o json"
 echo "  bohr batchjob wait <job_id> --interval 30s --timeout 8h"
 echo "  bohr batchjob download <job_id> --dest ./job_result"
 echo "Copy job_result/data/runs/llzo/checkpoints.jsonl over the local one to"
-echo "resume a follow-up job from these results, then plot the merged audit:"
+echo "resume a follow-up job from these results, then plot the audit:"
 echo "  python3 scripts/merge_and_plot.py --run-dir data/runs/llzo"

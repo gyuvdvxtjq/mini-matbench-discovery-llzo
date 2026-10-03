@@ -4,7 +4,6 @@ Examples
 --------
 python run_audit.py --config configs/llzo.yaml
 python run_audit.py --config configs/llzo.yaml --model chgnet-0.3.0
-python run_audit.py --config configs/llzo.yaml --model mace-mp-0-medium dpa4-mini-omat24
 python run_audit.py --config configs/llzo.yaml --device cuda
 """
 
@@ -25,9 +24,7 @@ def main() -> None:
         default=None,
         metavar="NAME",
         help=(
-            "Run only these models (repeatable/space-separated). mace-torch and "
-            "deepmd-kit cannot share an environment, so the audit is run in "
-            "passes; see cloud/run_split.sh."
+            "Run only these models (repeatable/space-separated)."
         ),
     )
     parser.add_argument(

@@ -2,7 +2,7 @@
 
 These two scripts are the **v0.1 CHGNet pilot**. Every conclusion they support
 has since been superseded by the multi-model audit in `mlip_audit/`, which runs
-CHGNet, MACE-MP-0 and DPA-4 through one identical protocol. They are kept, not
+CHGNet and MACE-MP-0 through one identical protocol. They are kept, not
 deleted, because they are the code that produced the numbers in
 [`../RESULTS.md`](../RESULTS.md) sections 2–3:
 

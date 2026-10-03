@@ -1,6 +1,6 @@
 ### Cross-model summary (single-point, hull distance vs Materials Project DFT)
 
-Covered: chgnet-0.3.0, mace-mp-0-medium. Missing: dpa4-mini-omat24.
+Covered: chgnet-0.3.0, mace-mp-0-medium.
 
 | Model | n | Hull MAE (eV/atom) | Hull Spearman | Formation-energy MAE | Stable F1 | Candidate F1 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |

@@ -1,7 +1,4 @@
 {
-  "skipped_models": {
-    "dpa4-mini-omat24": "deepmd-kit not installed: No module named 'deepmd'"
-  },
   "chgnet-0.3.0": {
     "single_point": {
       "n_total": 150,

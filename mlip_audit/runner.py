@@ -1,13 +1,10 @@
 """Orchestration: config -> per-model protocol runs -> metrics -> report.
 
-The runner is deliberately restartable and additive. Because mace-torch and
-deepmd-kit cannot share an environment (see cloud/setup_base.sh), the audit is
-expected to be executed in several passes -- one per environment -- each
-passing a subset of models. Every record is therefore addressed by
-(model, protocol, params-hash, material_id) rather than by "this run", so:
+The runner is deliberately restartable and additive. Every record is addressed
+by (model, protocol, params-hash, material_id) rather than by "this run", so:
 
 * a second pass skips whatever an earlier pass already computed, and
-* `report.json` is merged, never overwritten, so the halves add up.
+* `report.json` is merged, never overwritten, so passes add up.
 """
 
 from __future__ import annotations

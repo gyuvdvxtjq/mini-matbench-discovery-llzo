@@ -1,4 +1,4 @@
-# Li-La-Zr-O (LLZO) audit: three generations of universal MLIPs, one protocol.
+# Li-La-Zr-O (LLZO) audit: two generations of universal MLIPs, one protocol.
 #
 # No `device:` key is set anywhere: the runner resolves it to `auto`, i.e. cuda
 # when a GPU is usable and cpu otherwise, so this file works unchanged on a
@@ -17,11 +17,6 @@ models:
     type: mace
     variant: medium
     dtype: float64
-  # The .pt is not committed (CC-BY-NC-4.0, non-commercial): mlip_audit reads
-  # its location from the DPA4_CHECKPOINT environment variable, which
-  # cloud/setup_deepmd.sh exports after downloading it.
-  - name: dpa4-mini-omat24
-    type: deepmd
 
 relaxation:
   enabled: true

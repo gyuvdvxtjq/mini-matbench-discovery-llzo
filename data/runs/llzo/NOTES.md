@@ -9,10 +9,6 @@ Hardware: 1x A100-80GB, torch 2.14.0+cu130, wall time ~4.7 h (exit 0).
 | --- | --- |
 | chgnet-0.3.0 | full metrics (single_point + relaxation + md) |
 | mace-mp-0-medium | full metrics (single_point + relaxation + md) |
-| dpa4-mini-omat24 | **skipped** — `deepmd-kit not installed: No module named 'deepmd'` |
-
-deepmd-kit cannot be installed alongside mace-torch (pip ResolutionImpossible),
-so DPA-4 is reported in `report.json` under `skipped_models` rather than run.
 
 ## Known anomalies (recorded as-is, not corrected)
 

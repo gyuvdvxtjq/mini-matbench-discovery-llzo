@@ -24,11 +24,9 @@ data/raw/
 data/checkpoints/
 data/structures/
 
-# Regenerable run artifacts: MD trajectories (~65MB) and the fetched
-# DPA-4 model binary. The scientific record lives in report.json,
-# metrics_*.json, the per-model CSVs and checkpoints.jsonl.
+# Regenerable run artifacts: MD trajectories (~65MB). The scientific record
+# lives in report.json, metrics_*.json, the per-model CSVs and checkpoints.jsonl.
 data/runs/**/trajectories/
-models/**/*.pt
 
 # Optimization sandbox: an independent parallel MACE leg, not part of the
 # formal audit. Kept locally for cross-validation only.

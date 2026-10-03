@@ -1,5 +1,5 @@
 """Tests for the runnable path: device resolution, backend errors, and the
-split-environment workflow (cloud/run_split.sh).
+pass-by-pass workflow.
 
 These use the stub calculator and synthetic MP snapshot from conftest.py, so
 the whole config -> protocols -> checkpoint -> report pipeline is exercised
@@ -9,8 +9,6 @@ without downloading a model or touching the Materials Project API.
 from __future__ import annotations
 
 import json
-import sys
-import types
 from pathlib import Path
 
 import pytest
@@ -18,7 +16,6 @@ import pytest
 from mlip_audit.config import ModelSpec, load_config
 from mlip_audit.models import (
     BACKEND_SETUP,
-    DPA4_CHECKPOINT_ENV,
     ModelUnavailable,
     build_calculator,
     detect_device,
@@ -79,9 +76,6 @@ def test_config_without_device_key_defaults_to_auto(tmp_path):
     )
     cfg = load_config(cfg_file)
     assert cfg.models[0].device == "auto"
-    # The DPA-4 weights are no longer named in the config; they come from the
-    # DPA4_CHECKPOINT environment variable.
-    assert cfg.models[0].checkpoint == ""
 
 
 def test_config_paths_resolve_against_the_repo_root(tmp_path):
@@ -129,18 +123,15 @@ def test_shipped_configs_load_with_auto_devices(relative):
     assert cfg.mp_cache.is_absolute() and cfg.out_dir.is_absolute()
 
 
-def test_llzo_config_declares_the_three_models_and_no_checkpoint_path():
-    """The DPA-4 weights come from DPA4_CHECKPOINT, never from the config."""
+def test_llzo_config_declares_the_two_models():
+    """The shipped config names exactly the models the reference ran."""
     repo_root = Path(__file__).resolve().parent.parent
     cfg = load_config(repo_root / "configs/llzo.yaml")
     by_name = {spec.name: spec for spec in cfg.models}
     assert set(by_name) == {
         "chgnet-0.3.0",
         "mace-mp-0-medium",
-        "dpa4-mini-omat24",
     }
-    assert all(spec.checkpoint == "" for spec in by_name.values())
-    assert by_name["dpa4-mini-omat24"].type == "deepmd"
     # Every declared backend type must have a documented setup script.
     for spec in by_name.values():
         assert spec.type in BACKEND_SETUP
@@ -148,40 +139,6 @@ def test_llzo_config_declares_the_three_models_and_no_checkpoint_path():
 
 
 # ------------------------------------------------------------ backend errors
-def _fake_deepmd(monkeypatch) -> None:
-    root = types.ModuleType("deepmd")
-    calculator = types.ModuleType("deepmd.calculator")
-    calculator.DP = lambda checkpoint: checkpoint  # type: ignore[attr-defined]
-    root.calculator = calculator  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "deepmd", root)
-    monkeypatch.setitem(sys.modules, "deepmd.calculator", calculator)
-
-
-def test_missing_dpa4_checkpoint_error_names_the_variable(monkeypatch, tmp_path):
-    _fake_deepmd(monkeypatch)
-    monkeypatch.delenv(DPA4_CHECKPOINT_ENV, raising=False)
-    with pytest.raises(ModelUnavailable) as excinfo:
-        build_calculator(ModelSpec(name="dpa4-mini-omat24", type="deepmd"))
-    assert DPA4_CHECKPOINT_ENV in str(excinfo.value)
-    # The message must also say how to fix it, not just that it is missing.
-    assert "cloud/setup_deepmd.sh" in excinfo.value.report()
-
-
-def test_dpa4_checkpoint_path_is_read_from_environment(monkeypatch, tmp_path):
-    _fake_deepmd(monkeypatch)
-    weights = tmp_path / "dpa4.pt"
-    weights.write_bytes(b"not-really-weights")
-    monkeypatch.setenv(DPA4_CHECKPOINT_ENV, str(weights))
-    assert build_calculator(ModelSpec(name="dpa4", type="deepmd")) == str(weights)
-
-
-def test_dpa4_checkpoint_pointing_at_missing_file_is_reported(monkeypatch, tmp_path):
-    _fake_deepmd(monkeypatch)
-    monkeypatch.setenv(DPA4_CHECKPOINT_ENV, str(tmp_path / "absent.pt"))
-    with pytest.raises(ModelUnavailable, match=DPA4_CHECKPOINT_ENV):
-        build_calculator(ModelSpec(name="dpa4", type="deepmd"))
-
-
 def test_skip_message_names_package_and_setup_script():
     """A skip must say what to install and which script installs it."""
     exc = ModelUnavailable(
@@ -203,7 +160,6 @@ def test_report_without_hints_is_just_the_message():
     [
         ("chgnet", "chgnet", "cloud/setup_base.sh"),
         ("mace", "mace-torch", "cloud/setup_mace.sh"),
-        ("deepmd", "deepmd-kit", "cloud/setup_deepmd.sh"),
     ],
 )
 def test_backend_setup_map_covers_every_model_type(model_type, package, script):
@@ -239,13 +195,12 @@ def test_absent_backend_is_recorded_in_report(tmp_path, stub_config, monkeypatch
     assert "m-a" in report, "the available model must still be reported"
 
 
-# ------------------------------------------- split-environment equivalence
+# ------------------------------------------- pass-by-pass equivalence
 def test_split_batches_match_a_single_run(tmp_path, stub_backend, stub_config):
     """Two passes over one config == one pass over both models.
 
-    This is the property cloud/run_split.sh depends on: mace-torch and
-    deepmd-kit cannot share an environment, so the audit is run once per
-    environment against the same checkpoint file.
+    This is the property the runner depends on when a config is executed in
+    passes (e.g. one model at a time) against the same checkpoint file.
     """
     models = ["m-a", "m-b"]
 

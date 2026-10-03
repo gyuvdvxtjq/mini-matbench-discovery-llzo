@@ -1,6 +1,6 @@
 # mini-matbench-discovery-llzo
 
-**用通用机器学习原子间势（CHGNet / MACE-MP-0 / DPA）评测 Li–La–Zr–O 相空间的热力学稳定性预测**
+**用通用机器学习原子间势（CHGNet / MACE-MP-0）评测 Li–La–Zr–O 相空间的热力学稳定性预测**
 
 [English](README.md) | [简体中文](README.zh-CN.md) · 完整指标与误差归因分析：[`RESULTS.md`](RESULTS.md)
 
@@ -8,7 +8,7 @@
 
 ## 主要发现
 
-参考运行执行了配置中三个模型里的两个（CHGNet 0.3.0 与 MACE-MP-0 medium），跑过同一批 150 个 Li–La–Zr–O 结构；DPA-4 已接入但未执行（见[局限](#局限)）。由此得到三个结论：
+参考运行让 CHGNet 0.3.0 与 MACE-MP-0（medium）跑过同一批 150 个 Li–La–Zr–O 结构。由此得到三个结论：
 
 1. **富 La、富 Li 的大胞缺陷有序结构会被系统性"放平"。** 两个精确 LLZO 超胞的凸包距离被低估
    **约 60 meV/atom**（−59 ~ −63 meV/atom），且误差几乎全部来自这两个结构**自身**的形成能偏低，
@@ -40,29 +40,23 @@ python run_audit.py --config configs/llzo.yaml               # 完整 150 结构
 python scripts/merge_and_plot.py --run-dir data/runs/llzo --config configs/llzo.yaml
 ```
 
-`configs/llzo.yaml` 里还列了 MACE-MP-0 和 DPA-4。缺后端的模型会记入 `report.json` 的
+`configs/llzo.yaml` 里还列了 MACE-MP-0。缺后端的模型会记入 `report.json` 的
 `skipped_models`（含缺失的包名与对应的安装脚本），不会让整个任务失败。设备按模型以 `auto`
 解析（有可用 GPU 用 cuda，否则 cpu），同一份配置在笔记本和 GPU worker 上都能跑；`--device` 可强制。
 
 `data/raw/mp_phase_space.json`（Materials Project 快照）不入库；首次运行抓取，之后离线运行。
 
-## 跑齐三个模型
+## 跑两个模型
 
-`mace-torch` 与 `deepmd-kit` 无法在同一个环境里被 pip 解析——这正是参考运行把 DPA-4 记为
-`skipped_models` 而非真正跑起来的根因。解法不是强行解决冲突，而是不再强求：**每个模型跑在
-自己的环境里**，事后再把两半结果拼起来。runner 的每条记录本就按
-`(模型, 协议, 参数哈希, material_id)` 寻址，因此第二遍会自动跳过第一遍已算的部分。
+审计让 CHGNet 0.3.0 与 MACE-MP-0（medium）在同一套协议下运行。在 GPU worker 上：
 
 ```bash
-bash cloud/run_split.sh --env mace     # chgnet-0.3.0 + mace-mp-0-medium
-bash cloud/run_split.sh --env deepmd   # dpa4-mini-omat24
+bash cloud/run_job.sh                          # 装好两个后端，然后开跑
 python3 scripts/merge_and_plot.py --run-dir data/runs/llzo --config configs/llzo.yaml
 ```
 
-两个环境都会自行构建（幂等）：`cloud/setup_base.sh` 装公共栈，然后是 `cloud/setup_mace.sh`
-或 `cloud/setup_deepmd.sh`——后者还会下载 DPA-4 权重（CC-BY-NC-4.0，非商用）并导出
-`DPA4_CHECKPOINT`。Bohrium 批量任务用 `ENV=mace bash cloud/submit.sh` 和
-`ENV=deepmd bash cloud/submit.sh` 各提交一次，再合并两份 `checkpoints.jsonl`；
+`cloud/setup_mace.sh` 是幂等的：先用 `cloud/setup_base.sh` 装公共栈，再装
+`mace-torch`，已装的一律跳过。Bohrium 批量任务用 `bash cloud/submit.sh`；
 完整流程见 [`cloud/README.md`](cloud/README.md)。
 
 分批运行与一次性运行产生逐字节相同的记录，这一点由
@@ -86,13 +80,12 @@ python3 scripts/merge_and_plot.py --run-dir data/runs/llzo --config configs/llzo
 ├── run_audit.py                 # CLI：--config、--model（可重复）、--device、--limit
 ├── scripts/merge_and_plot.py    # CLI：合并后的 checkpoint -> figures/ + 可粘进 README 的表
 ├── configs/                     # llzo.yaml（正式审计）、smoke.yaml（12 结构 CPU 检查）
-├── tests/                       # 46 项测试；无需下载模型、无需 API key
-├── cloud/                       # Bohrium 批量任务：setup_base/_mace/_deepmd、run_split、submit
+├── tests/                       # 42 项测试；无需下载模型、无需 API key
+├── cloud/                       # Bohrium 批量任务：setup_base/_mace、run_job、submit
 ├── legacy/                      # v0.1 单模型试点（已归档，对应 RESULTS.md 第 2–3 节）
 ├── figures/                     # 生成的跨模型图与汇总表
-├── models/dpa4/                 # DPA-4 训练输入（.json）；.pt 运行时下载，不入库
 ├── data/runs/llzo/              # 审计结果：checkpoints.jsonl、report.json、各模型 CSV
-├── pyproject.toml               # 唯一的依赖清单（extras：[mace] / [deepmd] / [dev]）
+├── pyproject.toml               # 唯一的依赖清单（extras：[mace] / [dev]）
 ├── environment.yml              # Conda：python 3.11 + `pip install -e .`
 ├── CHANGELOG.md                 # 0.1 -> 0.2 -> 0.3
 └── RESULTS.md                   # 完整指标、误差归因与解读（中文）
@@ -106,12 +99,9 @@ python3 scripts/merge_and_plot.py --run-dir data/runs/llzo --config configs/llzo
 - **部分类别的样本量偏小。** 严格稳定相只有 15 个正例，其 F1 的 bootstrap 区间很宽
   （[0.182, 0.667]），剔除单质后即升到 0.556。应作方向性参考；更稳健的口径是 57 个正例的
   50 meV/atom 候选窗口。
-- **三个模型执行了两个，DPA-4 没有。** 已提交的结果覆盖 CHGNet 与 MACE-MP-0；DPA-4 被记入
-  `skipped_models` 而非真正运行，因此跨模型对比只有两个模型，分环境方案也未用真实 DPA-4 权重
-  验证过。**这是明确的范围决定，不是疏漏**：两个模型的对比按当前提交状态是完整且可复现的；
-  等到有支持 CUDA 12 的 worker 和 DPA-4 权重时，第三个模型只需一条命令
-  （`bash cloud/run_split.sh --env deepmd`）。框架跑它所需的一切——适配器、checkpoint 键、
-  环境脚本、权重下载——都已就位，且用桩后端覆盖了测试。
+- **两个模型，不是三个。** 已提交的结果覆盖 CHGNet 0.3.0 与 MACE-MP-0。DPA-4 已移出范围：
+  它在参考运行中从未执行，且跑它所需的适配器、权重与 CUDA 12 环境在本次工作期间都不可用。
+  本基准是两个模型的对比，所有结论都只建立在二者之上。
 - **异常按原样记录，不做修正。** MACE 在 O₂ 上的弛豫发生灾难性失效（−3.5e9 eV/atom，晶胞坍缩），
   单条记录就把全局凸包 MAE 拉高；该记录保留在 `report.json` 中，并在 `data/runs/llzo/NOTES.md`
   里说明。引用这个全局数字时若不排除该条，会把误差高估约 7 个数量级（其余 149 个结构为
@@ -127,8 +117,7 @@ v0.1 单模型试点位于 [`legacy/`](legacy/README.md)：已归档但仍可运
 
 ## 致谢
 
-感谢 CHGNet、MACE 与 DPA-4 开发团队，以及 Materials Project 联盟提供的开放模型与参考数据。
-DPA-4 权重采用 CC-BY-NC-4.0 许可（**非商用**）。
+感谢 CHGNet 与 MACE 开发团队，以及 Materials Project 联盟提供的开放模型与参考数据。
 
 ## 联系方式
 

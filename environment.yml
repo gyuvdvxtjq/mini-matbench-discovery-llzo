@@ -9,9 +9,8 @@
 #   conda env create -f environment.yml --override-channels
 #   conda activate mini-matbench-llzo
 #
-# For MACE-MP-0 or DPA-4, create a *separate* environment with the matching
-# extra: mace-torch and deepmd-kit are not co-installable by design. See
-# cloud/README.md, or just use cloud/run_split.sh, which handles both.
+# For MACE-MP-0, install the [mace] extra in this same environment:
+#   pip install -e ".[mace]"
 name: mini-matbench-llzo
 channels:
   - conda-forge

@@ -26,11 +26,10 @@ def repo_path(value: str | Path) -> Path:
 @dataclass
 class ModelSpec:
     name: str
-    type: str  # chgnet | mace | deepmd
+    type: str  # chgnet | mace
     enabled: bool = True
     device: str = AUTO_DEVICE
     variant: str = ""  # e.g. mace model size
-    checkpoint: str = ""  # deepmd model file, local path or hf:// repo
     dtype: str = "float64"
 
 
@@ -76,7 +75,6 @@ def _model(raw: dict[str, Any]) -> ModelSpec:
         enabled=bool(raw.get("enabled", True)),
         device=str(raw.get("device", AUTO_DEVICE)),
         variant=str(raw.get("variant", "")),
-        checkpoint=str(raw.get("checkpoint", "")),
         dtype=str(raw.get("dtype", "float64")),
     )
 

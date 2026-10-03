@@ -1,6 +1,6 @@
 # mini-matbench-discovery-llzo
 
-**Benchmarking universal MLIPs (CHGNet / MACE-MP-0 / DPA) for stability prediction in the Li–La–Zr–O phase space**
+**Benchmarking universal MLIPs (CHGNet / MACE-MP-0) for stability prediction in the Li–La–Zr–O phase space**
 
 [English](README.md) | [简体中文](README.zh-CN.md) · Full results and error analysis: [`RESULTS.md`](RESULTS.md) (Chinese)
 
@@ -8,7 +8,7 @@
 
 ## Key findings
 
-The reference run executed two of the three configured models (CHGNet 0.3.0 and MACE-MP-0 medium) over 150 Li–La–Zr–O structures; DPA-4 is wired in but was not executed (see [Limitations](#limitations)). Three things came out of that run:
+The reference run executed CHGNet 0.3.0 and MACE-MP-0 (medium) over 150 Li–La–Zr–O structures. Three things came out of that run:
 
 1. **La-rich, Li-excess defect supercells are systematically flattened.** The two exact LLZO supercells are underestimated by **≈ 60 meV/atom** in hull distance (−59 to −63 meV/atom), and the error is almost entirely their *own* formation energy sitting too low — not the competing phases being pushed down. [`RESULTS.md` §4.1](RESULTS.md)
 2. **A stable-phase verdict is not usable; a 50 meV/atom candidate window is.** Strict stable-phase F1 is **0.444**, while the same models score **F1 = 0.813** at the 50 meV/atom candidate window — the gap is dominated by ranking flips among elemental polymorphs a few meV/atom apart. [`RESULTS.md` §4.3](RESULTS.md)
@@ -34,37 +34,29 @@ python run_audit.py --config configs/llzo.yaml               # the full 150-stru
 python scripts/merge_and_plot.py --run-dir data/runs/llzo --config configs/llzo.yaml
 ```
 
-`configs/llzo.yaml` also lists MACE-MP-0 and DPA-4. Models whose backend is
-not installed are reported under `skipped_models` in `report.json` with the
-package and the setup script that installs it — they never abort the run.
+`configs/llzo.yaml` also lists MACE-MP-0. A model whose backend is not
+installed is reported under `skipped_models` in `report.json` with the
+package and the setup script that installs it — it never aborts the run.
 Devices are resolved per model as `auto` (cuda when a GPU is usable, else cpu),
 so the same config runs on a laptop and on a GPU worker; `--device` overrides.
 
 `data/raw/mp_phase_space.json` (the Materials Project snapshot) is
 git-ignored; the first run fetches it and every later run is offline.
 
-## Running all three models
+## Running both models
 
-`mace-torch` and `deepmd-kit` cannot be resolved by pip in the same
-environment — that is the recorded root cause of the reference run reporting
-DPA-4 under `skipped_models` instead of running it. The fix is not to force a
-resolution but to stop trying: **each model runs in its own environment**, and
-the two halves are stitched together afterwards. The runner already addresses
-every record by `(model, protocol, params-hash, material_id)`, so the second
-pass skips everything the first computed.
+The audit runs CHGNet 0.3.0 and MACE-MP-0 (medium) through one identical
+protocol. On a GPU worker:
 
 ```bash
-bash cloud/run_split.sh --env mace     # chgnet-0.3.0 + mace-mp-0-medium
-bash cloud/run_split.sh --env deepmd   # dpa4-mini-omat24
+bash cloud/run_job.sh                          # installs both backends, then runs
 python3 scripts/merge_and_plot.py --run-dir data/runs/llzo --config configs/llzo.yaml
 ```
 
-Each environment builds itself (idempotent): `cloud/setup_base.sh` for the
-shared stack, then `cloud/setup_mace.sh` or `cloud/setup_deepmd.sh`, which also
-downloads the DPA-4 weights (CC-BY-NC-4.0, non-commercial) and exports
-`DPA4_CHECKPOINT`. For Bohrium batch jobs, `ENV=mace bash cloud/submit.sh` and
-`ENV=deepmd bash cloud/submit.sh`, then merge the two `checkpoints.jsonl` — see
-[`cloud/README.md`](cloud/README.md) for the full flow.
+`cloud/setup_mace.sh` is idempotent: it installs the shared stack via
+`cloud/setup_base.sh`, then `mace-torch`, skipping anything already present.
+For a Bohrium batch job, `bash cloud/submit.sh` — see
+[`cloud/README.md`](cloud/README.md).
 
 Running the models one at a time produces byte-identical records to running
 them together; this is enforced by
@@ -88,13 +80,12 @@ them together; this is enforced by
 ├── run_audit.py                 # CLI: --config, --model (repeatable), --device, --limit
 ├── scripts/merge_and_plot.py    # CLI: merged checkpoint -> figures/ + README table
 ├── configs/                     # llzo.yaml (the audit), smoke.yaml (12-structure CPU check)
-├── tests/                       # 46 tests; no model downloads, no API key
-├── cloud/                       # Bohrium batch jobs: setup_base/_mace/_deepmd, run_split, submit
+├── tests/                       # 42 tests; no model downloads, no API key
+├── cloud/                       # Bohrium batch jobs: setup_base/_mace, run_job, submit
 ├── legacy/                      # v0.1 single-model pilot, archived (produces RESULTS.md 2-3)
 ├── figures/                     # Generated cross-model figures and the summary table
-├── models/dpa4/                 # DPA-4 training input (.json); the .pt is fetched, not committed
 ├── data/runs/llzo/              # Audit results: checkpoints.jsonl, report.json, per-model CSV
-├── pyproject.toml               # The single dependency manifest ([mace] / [deepmd] / [dev] extras)
+├── pyproject.toml               # The single dependency manifest ([mace] / [dev] extras)
 ├── environment.yml              # Conda: python 3.11 + `pip install -e .`
 ├── CHANGELOG.md                 # 0.1 -> 0.2 -> 0.3
 └── RESULTS.md                   # Full metrics, error attribution and interpretation (Chinese)
@@ -112,16 +103,11 @@ them together; this is enforced by
   its F1 has a wide bootstrap interval ([0.182, 0.667]) and swings to 0.556
   when elemental polymorphs are removed. Treat it as directional; the
   50 meV/atom candidate window (57 positives) is the robust metric.
-- **Two of three models were executed; DPA-4 is not.** The committed results
-  cover CHGNet and MACE-MP-0. DPA-4 was recorded under `skipped_models` rather
-  than run, so the cross-model comparison is two-wide, and the split
-  environments have not been exercised with real DPA-4 weights here. This is a
-  deliberate scope decision, not an oversight: the two-model comparison is
-  complete and reproducible as committed, and the third model is one command
-  away (`bash cloud/run_split.sh --env deepmd`) once a CUDA-12-capable worker
-  with the DPA-4 weights is available. Everything the framework needs to run it
-  — the adapter, the checkpoint key, the environment script, the weight
-  download — is in place and covered by tests using a stub backend.
+- **Two models, not three.** The committed results cover CHGNet 0.3.0 and
+  MACE-MP-0. DPA-4 was removed from scope: it was never executed in the
+  reference run, and the adapter, weights and CUDA-12 environment needed to
+  run it were not available during this work. The benchmark is a two-model
+  comparison and every claim in it rests on those two.
 - **Anomalies are recorded, not repaired.** A catastrophic MACE relaxation on
   O₂ (−3.5e9 eV/atom, collapsed cell) drags the global MACE hull MAE; it is
   kept in `report.json` and documented in `data/runs/llzo/NOTES.md`. Quoting
@@ -141,9 +127,9 @@ single-point hull MAE 0.0376 eV/atom).
 
 ## Acknowledgments
 
-Thanks to the CHGNet, MACE and DPA-4 development teams and the Materials
-Project consortium for open models and reference data that made this benchmark
-possible. The DPA-4 checkpoint is CC-BY-NC-4.0 (**non-commercial**).
+Thanks to the CHGNet and MACE development teams and the Materials Project
+consortium for open models and reference data that made this benchmark
+possible.
 
 ## Contact
 

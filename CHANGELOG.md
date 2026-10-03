@@ -3,7 +3,7 @@
 All notable changes to this benchmark are recorded here. The version refers to
 `mlip_audit.__version__`.
 
-## 0.3.0 — make the third model runnable, and stop maintaining three copies of everything
+## 0.3.0 — two-model scope, one dependency list, legacy archived
 
 **Why 0.2 was refactored in the first place:** adding a second model meant
 copying the entire pilot script. `battery_mlip_pilot.py` was

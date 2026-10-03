@@ -1,4 +1,4 @@
-# Li-La-Zr-O (LLZO) audit: two generations of universal MLIPs, one protocol.
+# Li-La-Zr-O (LLZO) audit: two universal MLIPs, one protocol.
 #
 # No `device:` key is set anywhere: the runner resolves it to `auto`, i.e. cuda
 # when a GPU is usable and cpu otherwise, so this file works unchanged on a

@@ -1,3 +1,17 @@
+# Conda environment for the LLZO audit.
+#
+# This file deliberately pins only the Python version and installs everything
+# else through pip, from the single dependency manifest in pyproject.toml.
+# A second hand-maintained list only guarantees the two drift apart -- which is
+# what happened with the original requirements.txt (it was missing pyyaml and
+# python-dotenv, both imported on the first line of mlip_audit).
+#
+#   conda env create -f environment.yml --override-channels
+#   conda activate mini-matbench-llzo
+#
+# For MACE-MP-0 or DPA-4, create a *separate* environment with the matching
+# extra: mace-torch and deepmd-kit are not co-installable by design. See
+# cloud/README.md, or just use cloud/run_split.sh, which handles both.
 name: mini-matbench-llzo
 channels:
   - conda-forge
@@ -5,10 +19,4 @@ dependencies:
   - python=3.11
   - pip
   - pip:
-      - chgnet==0.4.2
-      - torch==2.5.1
-      - matplotlib==3.10.5
-      - mp-api==0.46.5
-      - pandas==2.3.2
-      - python-dotenv==1.1.1
-      - scipy==1.16.1
+      - -e .

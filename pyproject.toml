@@ -1,0 +1,99 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mini-matbench-discovery-llzo"
+version = "0.3.0"
+description = "Benchmarking universal MLIPs (CHGNet / MACE-MP-0 / DPA) for stability prediction in the Li-La-Zr-O phase space"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"  # mp-api 0.46.x is the binding constraint
+authors = [{ name = "gyuvdvxtjq" }]
+keywords = [
+    "machine-learning-interatomic-potential",
+    "materials-discovery",
+    "convex-hull",
+    "garnet-solid-electrolyte",
+    "LLZO",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+# Core stack: everything mlip_audit imports unconditionally, matching
+# cloud/setup_base.sh. Mirrors the environment the 2026-09-29 reference run
+# used (torch 2.14.0+cu130 on an A100; see data/runs/llzo/NOTES.md).
+dependencies = [
+    "numpy>=1.26",          # chgnet 0.4.2 floor
+    "pandas>=2.0",
+    "scipy>=1.11",
+    "matplotlib>=3.8",
+    "ase>=3.23",            # chgnet 0.4.2 floor
+    "pymatgen>=2024.9.10",  # chgnet 0.4.2 floor; PhaseDiagram for the hull
+    "mp-api==0.46.5",       # Materials Project client (pinned: API field names drift)
+    "chgnet==0.4.2",        # provides the CHGNet 0.3.0 pretrained weights
+    "torch>=2.4.1",         # chgnet 0.4.2 floor
+    "pyyaml>=6.0",          # audit configs
+    "python-dotenv>=1.0",   # MP_API_KEY from .env
+]
+
+# ---------------------------------------------------------------------------
+# WHY [mace] AND [deepmd] ARE SEPARATE EXTRAS -- DO NOT MERGE THEM
+# ---------------------------------------------------------------------------
+# mace-torch and deepmd-kit could not be resolved by pip in the same
+# environment (ResolutionImpossible); that is the recorded root cause of
+# DPA-4 being reported under `skipped_models` in the reference run, i.e. three
+# models planned, two delivered. See data/runs/llzo/NOTES.md.
+#
+# The fix applied here is to stop trying to co-install them, not to force a
+# resolution: each model runs in its own environment (cloud/run_split.sh
+# --env mace|deepmd) and both halves append to the same checkpoint file, which
+# is addressed by (model, protocol, params-hash, material_id) and therefore
+# composes across processes.
+#
+# Keeping the extras separate also keeps the two halves' dependency sets
+# independent: the mace half does not inherit deepmd-kit's ~1 GB CUDA wheels,
+# and vice versa. Note that co-installation now *resolves* against current
+# PyPI releases (mace-torch 0.3.16 + deepmd-kit 3.2.0), but that combination is
+# NOT what was validated with real model weights here -- the split is what has
+# been tested, so it stays the documented path.
+
+[project.optional-dependencies]
+mace = ["mace-torch>=0.3.0"]
+deepmd = ["deepmd-kit>=3.0"]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/gyuvdvxtjq/mini-matbench-discovery-llzo"
+Repository = "https://github.com/gyuvdvxtjq/mini-matbench-discovery-llzo"
+Issues = "https://github.com/gyuvdvxtjq/mini-matbench-discovery-llzo/issues"
+
+[tool.setuptools]
+# Explicit: auto-discovery would try to package data/, legacy/ and tests/.
+packages = ["mlip_audit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501",   # long lines are handled by the formatter, not the linter
+    "B008",   # argparse defaults are fine
+    # The protocol closures (protocols._observe, runner's calculator factories)
+    # deliberately capture their loop variable: each is invoked synchronously
+    # inside the same iteration, so late binding cannot leak across structures.
+    "B023",
+]
